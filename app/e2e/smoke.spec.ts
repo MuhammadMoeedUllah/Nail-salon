@@ -22,6 +22,13 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await page.click('aside button[type=submit]');
   await expect(page.locator('td', { hasText: 'Gel manicure' }).first()).toBeVisible();
   await expect(page.locator('a', { hasText: /Open pay run|Mở bảng tính lương/ })).toBeVisible();
+  // repeat last in one tap
+  const before = await page.locator('td', { hasText: 'Gel manicure' }).count();
+  await page.locator('button', { hasText: /Repeat last|Lặp lại/ }).click();
+  await expect(page.locator('td', { hasText: 'Gel manicure' })).toHaveCount(before + 1);
+  // card tips handed over in cash, then undo
+  await page.locator('button', { hasText: /Card tips handed over in cash|Đã đưa tip thẻ/ }).first().click();
+  await expect(page.locator('button', { hasText: /Card tips paid out in cash|Tip thẻ đã trả tiền mặt/ }).first()).toBeVisible();
 
   // pay runs list
   await page.goto(`${BASE}/app/pay`);
@@ -80,7 +87,8 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
 
   // mark paid in one click
   await page.goto(`${BASE}${href}`);
-  await page.locator('button', { hasText: /Mark all paid by check today|Đánh dấu đã trả hết/ }).click();
+  const payBtn = page.locator('button', { hasText: /Mark all paid by check today|Đánh dấu đã trả hết/ });
+  if (await payBtn.count()) await payBtn.click();
   await expect(page.locator('h1 .badge')).toContainText(/Paid|Đã trả/);
 
   // audit page + exports

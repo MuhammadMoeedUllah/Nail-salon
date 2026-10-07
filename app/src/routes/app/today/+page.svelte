@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { tick } from 'svelte';
   import { makeT } from '$lib/i18n';
   import { fmtCents, fmtDateLong, fmtMinutes } from '$lib/time';
   import { dollars } from '$lib/money';
@@ -43,7 +44,7 @@
   let toast = $state('');
   let lastTicket = $state<{ workerId: string; serviceName: string; price: string; tipCard: string; tipCash: string; payMethod: string } | null>(null);
   let formEl: HTMLFormElement | undefined = $state();
-  function repeatLast() {
+  async function repeatLast() {
     if (!lastTicket) return;
     lastWorker = lastTicket.workerId;
     serviceName = lastTicket.serviceName;
@@ -51,7 +52,8 @@
     tipCard = lastTicket.tipCard;
     tipCash = lastTicket.tipCash;
     payMethod = lastTicket.payMethod;
-    queueMicrotask(() => formEl?.requestSubmit());
+    await tick();
+    formEl?.requestSubmit();
   }
   const quickTips = [0, 3, 5, 10, 20];
   function pickService(s: { en: string; vi: string; price: number }) {
