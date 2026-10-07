@@ -15,6 +15,7 @@
           tickets: data.tickets.filter((x) => x.workerId === w.id),
           sales: tk.reduce((s, x) => s + x.priceCents, 0),
           tipCard: tk.reduce((s, x) => s + x.tipCardCents, 0),
+          tipCardPaidOut: tk.reduce((s, x) => s + (x.tipCardPaidOut ? x.tipCardCents : 0), 0),
           tipCash: tk.reduce((s, x) => s + x.tipCashCents, 0),
           minutes: ps.reduce((s, p) => s + (p.minutes ?? 0), 0),
           punches: ps
@@ -40,7 +41,19 @@
   let payMethod = $state('');
   let showAllServices = $state(false);
   let toast = $state('');
-  const quickTips = [0, 3, 5, 10];
+  let lastTicket = $state<{ workerId: string; serviceName: string; price: string; tipCard: string; tipCash: string; payMethod: string } | null>(null);
+  let formEl: HTMLFormElement | undefined = $state();
+  function repeatLast() {
+    if (!lastTicket) return;
+    lastWorker = lastTicket.workerId;
+    serviceName = lastTicket.serviceName;
+    price = lastTicket.price;
+    tipCard = lastTicket.tipCard;
+    tipCash = lastTicket.tipCash;
+    payMethod = lastTicket.payMethod;
+    queueMicrotask(() => formEl?.requestSubmit());
+  }
+  const quickTips = [0, 3, 5, 10, 20];
   function pickService(s: { en: string; vi: string; price: number }) {
     serviceName = svcName(s);
     price = dollars(s.price);
@@ -52,6 +65,7 @@
   }
   $effect(() => {
     if (form?.ok && form.form === 'ticket') {
+      lastTicket = { workerId: lastWorker, serviceName, price, tipCard, tipCash, payMethod };
       price = '';
       serviceName = '';
       tipCard = '';
@@ -127,7 +141,20 @@
             {#if w.status?.state === 'in'}<span class="badge ml-2 bg-emerald-100 text-emerald-800">{t('still_in')}</span>{/if}
             {#if w.status?.state === 'break'}<span class="badge ml-2 bg-amber-100 text-amber-800">{t('kiosk_start_break')}</span>{/if}
           </h2>
-          <div class="text-sm text-stone-600 tabular-nums">{t('hours')} <strong>{fmtMinutes(w.minutes)}</strong> · {t('sales')} <strong>{fmtCents(w.sales)}</strong> · {t('tips')} <strong>{fmtCents(w.tipCard + w.tipCash)}</strong></div>
+          <div class="flex flex-wrap items-center gap-2 text-sm text-stone-600 tabular-nums">
+            <span>{t('hours')} <strong>{fmtMinutes(w.minutes)}</strong> · {t('sales')} <strong>{fmtCents(w.sales)}</strong> · {t('tips')} <strong>{fmtCents(w.tipCard + w.tipCash)}</strong></span>
+            {#if w.tipCard > 0}
+              <form method="post" action="?/payOutTips" use:enhance class="inline">
+                <input type="hidden" name="workerId" value={w.id} /><input type="hidden" name="date" value={data.date} />
+                {#if w.tipCardPaidOut >= w.tipCard}
+                  <input type="hidden" name="undo" value="1" />
+                  <button class="badge bg-emerald-100 text-emerald-800" title={t('tips_undo_pay_out')}>✓ {t('tips_paid_out')} {fmtCents(w.tipCardPaidOut)}</button>
+                {:else}
+                  <button class="rounded-md bg-white px-2 py-1 text-xs font-semibold text-stone-700 ring-1 ring-stone-300 hover:bg-stone-100">💵 {t('tips_pay_out_btn')} ({fmtCents(w.tipCard - w.tipCardPaidOut)})</button>
+                {/if}
+              </form>
+            {/if}
+          </div>
         </div>
         <!-- punches -->
         <div class="mb-3 flex flex-wrap gap-2 text-sm">
@@ -172,7 +199,7 @@
                   <td>{tk.ticketNo ?? ''}{#if tk.source !== 'manual'} <span class="badge bg-stone-100 text-stone-600">{tk.source.replace('csv:', '')}</span>{/if}</td>
                   <td>{tk.serviceName}</td>
                   <td class="text-right tabular-nums">{fmtCents(tk.priceCents)}</td>
-                  <td class="text-right tabular-nums">{tk.tipCardCents ? fmtCents(tk.tipCardCents) : ''}</td>
+                  <td class="text-right tabular-nums">{tk.tipCardCents ? fmtCents(tk.tipCardCents) : ''}{#if tk.tipCardPaidOut}<span class="ml-1 text-xs text-emerald-700" title={t('tips_paid_out')}>💵</span>{/if}</td>
                   <td class="text-right tabular-nums">{tk.tipCashCents ? fmtCents(tk.tipCashCents) : ''}</td>
                   <td class="text-right">
                     {#if !tk.voidedAt}
@@ -202,8 +229,14 @@
   </section>
 
   <aside class="lg:sticky lg:top-20 lg:self-start">
-    <form method="post" action="?/addTicket" use:enhance class="card space-y-3">
-      <div class="flex items-center justify-between"><h2 class="font-bold">{t('add_ticket')}</h2>{#if toast}<span class="badge bg-emerald-100 text-emerald-800">✓ {toast}</span>{/if}</div>
+    <form method="post" action="?/addTicket" use:enhance class="card space-y-3" bind:this={formEl}>
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold">{t('add_ticket')}</h2>
+        <div class="flex items-center gap-2">
+          {#if toast}<span class="badge bg-emerald-100 text-emerald-800">✓ {toast}</span>{/if}
+          {#if lastTicket}<button type="button" class="rounded-md px-2 py-1 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 hover:bg-brand-50" onclick={repeatLast} title={lastTicket.serviceName}>↻ {t('repeat_last')}</button>{/if}
+        </div>
+      </div>
       {#if form?.form === 'ticket' && form?.error}<p class="rounded-lg bg-red-50 p-2 text-sm text-red-700">{t('invalid')}</p>{/if}
       <input type="hidden" name="date" value={data.date} />
       <input type="hidden" name="workerId" value={lastWorker} />

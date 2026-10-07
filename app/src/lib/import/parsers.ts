@@ -15,6 +15,9 @@ export interface Mapping {
   externalId: string | null;
   ticketNo: string | null;
   qty: string | null;
+  /** Square Transactions CSV: tender amounts, used when no payment-method column exists */
+  cashAmount: string | null;
+  cardAmount: string | null;
 }
 
 export interface NormalizedTicket {
@@ -30,7 +33,7 @@ export interface NormalizedTicket {
   ticketNo: string | null;
 }
 
-export type Format = 'square_items' | 'square_transactions' | 'fresha' | 'vagaro' | 'glossgenius' | 'booksy' | 'generic';
+export type Format = 'square_items' | 'square_transactions' | 'fresha' | 'vagaro' | 'glossgenius' | 'booksy' | 'generic' | 'summary_unsupported';
 
 export function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
   const clean = text.replace(/^﻿/, '');
@@ -56,10 +59,14 @@ function find(headers: string[], candidates: string[], exclude: string[] = []): 
 
 export function detectFormat(headers: string[]): Format {
   const h = new Set(headers.map(norm));
-  if (h.has('itemization type') || (h.has('item') && h.has('employee') && h.has('gross sales'))) return 'square_items';
+  const any = (...parts: string[]) => [...h].some((x) => parts.some((p) => x.includes(p)));
+  const hasDate = any('date', 'checkout', 'day');
+  // Period summaries (Fresha commission summary, Vagaro employee sales, Mangomint payroll) have no row per sale
+  if (!hasDate && any('commission base', 'items sold', 'services sales', 'service comp', 'payroll due', 'sales qty')) return 'summary_unsupported';
+  if (h.has('itemization type') || (h.has('item') && h.has('employee') && h.has('gross sales')) || (h.has('price point name') && h.has('modifiers applied'))) return 'square_items';
   if (h.has('staff name') && h.has('gross sales') && h.has('tip')) return 'square_transactions';
   if (h.has('team member') || h.has('sale number') || h.has('appointment reference')) return 'fresha';
-  if (h.has('checkout date') || h.has('checkout by') || h.has('amount paid')) return 'vagaro';
+  if (any('checkout date', 'checkout by') || h.has('amount paid') || h.has('service provider')) return 'vagaro';
   if (h.has('net sales') && h.has('total price') && h.has('tips')) return 'glossgenius';
   if ([...h].some((x) => x.includes('booksy'))) return 'booksy';
   return 'generic';
@@ -69,15 +76,17 @@ export function guessMapping(headers: string[]): Mapping {
   return {
     date: find(headers, ['date', 'checkout date', 'sale date', 'payment date', 'app date', 'appointment date', 'service date', 'day']),
     time: find(headers, ['time'], ['time zone', 'timezone', 'date time']),
-    staff: find(headers, ['employee', 'staff name', 'team member', 'technician', 'tech', 'staff', 'provider', 'stylist', 'checkout by', 'service provider', 'worker', 'name']),
+    staff: find(headers, ['employee', 'staff name', 'team member', 'service provider', 'technician', 'tech', 'staff', 'provider', 'sold by', 'stylist', 'checkout by', 'worker', 'name'], ['customer', 'client']),
     service: find(headers, ['item', 'service', 'description', 'service name', 'item name', 'product', 'details', 'treatment']),
-    price: find(headers, ['net sales', 'gross sales', 'price', 'service price', 'total price', 'amount paid', 'amount', 'sale price', 'subtotal', 'total', 'sales'], ['tax', 'tip', 'discount', 'commission']),
-    tip: find(headers, ['tip', 'tips', 'gratuity', 'card tip', 'credit tip'], ['cash']),
-    tipCash: find(headers, ['cash tip', 'cash tips']),
+    price: find(headers, ['net sales', 'gross sales', 'price', 'service price', 'total price', 'services sales', 'service sale amount', 'amount paid', 'amount', 'sale price', 'commission base', 'subtotal', 'total', 'sales'], ['tax', 'tip', 'discount', 'commission %', 'commission rate', 'processing', 'fee', 'refund']),
+    tip: find(headers, ['tip', 'tips', 'gratuity', 'net gratuity', 'card tip', 'credit tip'], ['cash', 'unattributed', 'declared']),
+    tipCash: find(headers, ['cash tip', 'cash tips', 'declared cash tips']),
     method: find(headers, ['payment method', 'tender', 'payment type', 'card brand', 'method', 'transaction type', 'payment'], ['date', 'id', 'number']),
-    externalId: find(headers, ['transaction id', 'payment id', 'sale number', 'payment number', 'ticket id', 'invoice', 'order id', 'appointment reference', 'id']),
+    externalId: find(headers, ['payment id', 'transaction id', 'charge id', 'sale id', 'sale number', 'payment number', 'ticket id', 'invoice', 'order id', 'appointment reference', 'id'], ['customer', 'client', 'staff', 'device', 'location', 'deposit']),
     ticketNo: find(headers, ['ticket', 'ticket number', 'ticket no', 'sale number', 'invoice number', 'receipt']),
-    qty: find(headers, ['qty', 'quantity'])
+    qty: find(headers, ['qty', 'quantity']),
+    cashAmount: headers.find((x) => norm(x) === 'cash') ?? null,
+    cardAmount: headers.find((x) => norm(x) === 'card') ?? null
   };
 }
 
@@ -212,7 +221,12 @@ export async function normalizeRows(rows: Record<string, string>[], map: Mapping
       continue;
     }
     const qty = map.qty ? Math.max(1, Math.round(Number(r[map.qty]) || 1)) : 1;
-    const method = methodOf(map.method ? r[map.method] : undefined);
+    let method = methodOf(map.method ? r[map.method] : undefined);
+    if (!method && (map.cashAmount || map.cardAmount)) {
+      const cash = map.cashAmount ? (parseMoneyCents(r[map.cashAmount]) ?? 0) : 0;
+      const card = map.cardAmount ? (parseMoneyCents(r[map.cardAmount]) ?? 0) : 0;
+      method = cash > 0 && card === 0 ? 'cash' : card > 0 ? 'card' : null;
+    }
     const tip = Math.max(0, (map.tip ? parseMoneyCents(r[map.tip]) : 0) ?? 0);
     const tipCashCol = Math.max(0, (map.tipCash ? parseMoneyCents(r[map.tipCash]) : 0) ?? 0);
     let tipCard = 0;

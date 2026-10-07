@@ -86,6 +86,10 @@ export function statementContent(line: WeekLine, ctx: StatementCtx): Content[] {
   if (r.deductionsCents) summary.push([td(t('deductions')), td('− ' + fmtCents(r.deductionsCents), 'right')]);
   summary.push([td(t('gross_wages'), 'left', { bold: true }), td(fmtCents(r.grossWagesCents), 'right', { bold: true })]);
   summary.push([td(t('tip_card')), td(fmtCents(r.tipsCardCents), 'right')]);
+  if (r.tipsCardPaidOutCents) {
+    summary.push([td('   ' + t('tips_paid_out'), 'left', { color: '#555' }), td('− ' + fmtCents(r.tipsCardPaidOutCents), 'right', { color: '#555' })]);
+    summary.push([td('   ' + t('card_tips_owed_label')), td(fmtCents(r.tipsCardOwedCents), 'right')]);
+  }
   summary.push([td(t('tip_cash')), td(fmtCents(r.tipsCashCents), 'right')]);
   summary.push([td(`${t('total_pay')} (${t('gross_wages')} + ${t('card_tips_owed')})`, 'left', { bold: true, fontSize: 11 }), td(fmtCents(r.totalCents), 'right', { bold: true, fontSize: 11 })]);
   if (ctx.paid && (ctx.paid.cash || ctx.paid.check || ctx.paid.payroll)) {

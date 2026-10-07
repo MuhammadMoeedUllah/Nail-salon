@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const st = await statusesFor(locals.salon, ws.map((w) => w.id));
   return {
     locale: locals.locale,
-    salon: { name: locals.salon.name, timezone: locals.salon.timezone, photoOnPunch: locals.salon.photoOnPunch, autoClockIn: locals.salon.kioskAutoClockIn },
+    salon: { name: locals.salon.name, timezone: locals.salon.timezone, photoOnPunch: locals.salon.photoOnPunch, autoClockIn: locals.salon.kioskAutoClockIn, showTickets: locals.salon.kioskShowTickets },
     isOwnerPreview: !!locals.user,
     workers: ws.map((w) => ({ id: w.id, name: w.displayName, locale: w.locale as 'en' | 'vi', status: st[w.id] }))
   };

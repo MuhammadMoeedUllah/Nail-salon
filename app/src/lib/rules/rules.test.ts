@@ -23,6 +23,22 @@ describe('rules lookup', () => {
     expect(ruleSetFor('FL', null, '2026-09-29').minWageCents).toBe(1400);
     expect(ruleSetFor('FL', null, '2026-09-30').minWageCents).toBe(1500);
   });
+  it('2027 step-ups apply from January 1, 2027 and New York stays frozen', () => {
+    expect(ruleSetFor('CT', null, '2026-12-31').minWageCents).toBe(1694);
+    expect(ruleSetFor('CT', null, '2027-01-01').minWageCents).toBe(1748);
+    expect(ruleSetFor('NJ', null, '2027-01-01').minWageCents).toBe(1648);
+    expect(ruleSetFor('VA', null, '2027-06-01').minWageCents).toBe(1375);
+    expect(ruleSetFor('VA', null, '2028-01-01').minWageCents).toBe(1500);
+    expect(ruleSetFor('WA', null, '2027-01-01').minWageCents).toBe(1773);
+    expect(ruleSetFor('CA', null, '2027-01-01').minWageCents).toBe(1740);
+    expect(ruleSetFor('NY', 'NYC', '2027-03-01').minWageCents).toBe(1700);
+    expect(ruleSetFor('NY', 'REST', '2027-03-01').minWageCents).toBe(1600);
+  });
+
+  it('New York allows no tip credit', () => {
+    expect(Number(findRule('NY', 'NYC', 'tip_credit_allowed', '2026-10-05')?.value)).toBe(0);
+  });
+
   it('every entry carries a source and a checked-on date', () => {
     for (const e of RULES) {
       expect(e.source_url).toMatch(/^https?:\/\//);

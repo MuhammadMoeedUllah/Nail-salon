@@ -48,6 +48,8 @@ export interface WorkerWeekInput {
   /** service sales on this worker's tickets (price only, tips excluded) */
   salesCents: number;
   tipsCardCents: number;
+  /** part of tipsCardCents already handed over in cash (still the worker's tips, not owed again) */
+  tipsCardPaidOutCents?: number;
   tipsCashCents: number;
   /** itemised deductions already agreed in writing; engine subtracts but never creates them */
   deductionsCents?: number;
@@ -105,10 +107,12 @@ export interface WeekResult {
   minWageTopupCents: number;
   spreadOfHoursCents: number;
   tipsCardCents: number;
+  tipsCardPaidOutCents: number;
+  tipsCardOwedCents: number;
   tipsCashCents: number;
   deductionsCents: number;
   grossWagesCents: number; // wages excluding tips
-  totalCents: number; // gross wages + card tips owed to the worker
+  totalCents: number; // gross wages + card tips still owed to the worker
   flags: Flag[];
   breakdown: BreakdownLine[];
 }
@@ -276,7 +280,9 @@ export function computeWeek(input: WorkerWeekInput, rules: RuleSet): WeekResult 
 
   const deductionsCents = input.deductionsCents ?? 0;
   const grossWagesCents = straightTimeCents + overtimePremiumCents + spreadOfHoursCents - deductionsCents;
-  const totalCents = grossWagesCents + input.tipsCardCents;
+  const tipsCardPaidOutCents = Math.min(input.tipsCardCents, Math.max(0, input.tipsCardPaidOutCents ?? 0));
+  const tipsCardOwedCents = input.tipsCardCents - tipsCardPaidOutCents;
+  const totalCents = grossWagesCents + tipsCardOwedCents;
 
   breakdown.push({
     key: 'gross_wages',
@@ -285,7 +291,7 @@ export function computeWeek(input: WorkerWeekInput, rules: RuleSet): WeekResult 
   });
   breakdown.push({
     key: 'tips',
-    inputs: { tipsCardCents: input.tipsCardCents, tipsCashCents: input.tipsCashCents },
+    inputs: { tipsCardCents: input.tipsCardCents, tipsCardPaidOutCents, tipsCashCents: input.tipsCashCents },
     resultCents: input.tipsCardCents + input.tipsCashCents,
     rule: '29 CFR 531.52: tips belong to the employee and are not wages'
   });
@@ -307,6 +313,8 @@ export function computeWeek(input: WorkerWeekInput, rules: RuleSet): WeekResult 
     minWageTopupCents,
     spreadOfHoursCents,
     tipsCardCents: input.tipsCardCents,
+    tipsCardPaidOutCents,
+    tipsCardOwedCents,
     tipsCashCents: input.tipsCashCents,
     deductionsCents,
     grossWagesCents,

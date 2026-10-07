@@ -110,6 +110,7 @@
         {/each}
       </div>
     </details>
+    {#if format === 'summary_unsupported'}<p class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{t('import_summary_unsupported')}</p>{/if}
     {#if skipped.length}<p class="text-xs text-stone-500">Skipped rows: {skipped.length} ({[...new Set(skipped.map((s) => s.reason))].join(', ')})</p>{/if}
   </div>
 

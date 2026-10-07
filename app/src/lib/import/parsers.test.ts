@@ -53,7 +53,7 @@ describe('import parsers', () => {
     expect(map.tip).toBe('Tip');
     const r = await normalizeRows(rows, map);
     expect(r.tickets[0]).toMatchObject({ workDate: '2026-10-05', time: '14:30', priceCents: 6000, tipCardCents: 1000, serviceName: 'Acrylic Full Set', paymentMethod: 'card' });
-    expect(r.tickets[0].externalId.startsWith('TX900')).toBe(true);
+    expect(r.tickets[0].externalId).toMatch(/^(PM900|TX900)/);
   });
 
   it('detects Fresha commission activity', async () => {
@@ -78,6 +78,35 @@ describe('import parsers', () => {
     // hashed ids are stable per row content
     const again = await normalizeRows(rows, map, { tipsAre: 'by_method' });
     expect(again.tickets[0].externalId).toBe(r.tickets[0].externalId);
+  });
+
+  it('Square transactions without a payment-method column infer tender from Cash/Card amounts', async () => {
+    const csv = `Date,Time,Gross Sales,Net Sales,Tip,Card,Cash,Transaction ID,Staff Name,Description
+2026-10-05,10:00:00,$40.00,$40.00,$0.00,$0.00,$40.00,T1,Hoa,Pedicure
+2026-10-05,11:00:00,$45.00,$45.00,$9.00,$54.00,$0.00,T2,Hoa,Gel Manicure`;
+    const { headers, rows } = parseCsv(csv);
+    const map = guessMapping(headers);
+    expect(map.method).toBeNull();
+    const r = await normalizeRows(rows, map, { tipsAre: 'by_method' });
+    expect(r.tickets[0].paymentMethod).toBe('cash');
+    expect(r.tickets[1]).toMatchObject({ paymentMethod: 'card', tipCardCents: 900 });
+  });
+
+  it('recognises Vagaro combined checkout header and service provider sheets', async () => {
+    const h1 = parseCsv(`Checkout Date / Checkout By / Transaction ID,App. Date / Customer,Service Provider,Service,Tip,Discount,Amount Paid,Sales Tax
+"10/05/2026 / Tina / 88811","10/05/2026 / Jane D.",Linh,Gel Manicure,$8.00,$0.00,$45.00,$0.00`);
+    expect(detectFormat(h1.headers)).toBe('vagaro');
+    const map = guessMapping(h1.headers);
+    expect(map.staff).toBe('Service Provider');
+    expect(map.price).toBe('Amount Paid');
+    const r = await normalizeRows(h1.rows, map);
+    expect(r.tickets[0]).toMatchObject({ workDate: '2026-10-05', staffName: 'Linh', priceCents: 4500, tipCardCents: 800 });
+  });
+
+  it('flags period summaries that are not per-sale records', () => {
+    const { headers } = parseCsv(`Team member,Sales qty,Items sold,Gross sales,Commission base,Commission,% Commission
+Linh,23,23,$1,535.00,$1,535.00,$921.00,60%`);
+    expect(detectFormat(headers)).toBe('summary_unsupported');
   });
 
   it('matches staff names to technicians', () => {

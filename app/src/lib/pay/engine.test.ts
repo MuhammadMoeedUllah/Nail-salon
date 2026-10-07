@@ -99,6 +99,17 @@ describe('computeWeek: federal worked examples', () => {
     expect(high.straightTimeCents).toBe(120000);
   });
 
+  it('card tips already paid out in cash are not owed again but stay reported', () => {
+    const r = computeWeek(
+      base({ payBasis: 'hourly', hourlyRateCents: 2000, days: days([8, 8, 8, 8, 8]), tipsCardCents: 30000, tipsCardPaidOutCents: 12000, tipsCashCents: 5000 }),
+      NYC
+    );
+    expect(r.tipsCardCents).toBe(30000);
+    expect(r.tipsCardPaidOutCents).toBe(12000);
+    expect(r.tipsCardOwedCents).toBe(18000);
+    expect(r.totalCents).toBe(r.grossWagesCents + 18000);
+  });
+
   it('guarantee does not apply to a week with no hours and no tickets', () => {
     const r = computeWeek(base({ payBasis: 'guarantee_or_commission', guaranteeCents: 90000, commissionPct: 60, days: [] }), NYC);
     expect(r.baseCents).toBe(0);
@@ -194,7 +205,7 @@ describe('computeWeek: invariants', () => {
           // straight time per hour is at least the minimum wage (within a cent of rounding)
           expect(r.straightTimeCents / hours).toBeGreaterThanOrEqual(NYC.minWageCents - 1);
         }
-        expect(r.totalCents).toBe(r.grossWagesCents + r.tipsCardCents);
+        expect(r.totalCents).toBe(r.grossWagesCents + r.tipsCardOwedCents);
       })
     );
   });

@@ -103,6 +103,10 @@
         {#if r.deductionsCents}<tr><td>{t('deductions')}</td><td class="text-right tabular-nums">− {fmtCents(r.deductionsCents)}</td></tr>{/if}
         <tr class="font-bold"><td>{t('gross_wages')}</td><td class="text-right tabular-nums">{fmtCents(r.grossWagesCents)}</td></tr>
         <tr><td>{t('tip_card')}</td><td class="text-right tabular-nums">{fmtCents(r.tipsCardCents)}</td></tr>
+        {#if r.tipsCardPaidOutCents}
+          <tr class="text-stone-600"><td class="pl-6">{t('tips_paid_out')}</td><td class="text-right tabular-nums">− {fmtCents(r.tipsCardPaidOutCents)}</td></tr>
+          <tr><td class="pl-6">{t('card_tips_owed_label')}</td><td class="text-right tabular-nums">{fmtCents(r.tipsCardOwedCents)}</td></tr>
+        {/if}
         <tr><td>{t('tip_cash')}</td><td class="text-right tabular-nums">{fmtCents(r.tipsCashCents)}</td></tr>
         <tr class="text-lg font-bold"><td>{t('total_pay')} ({t('gross_wages')} + {t('card_tips_owed')})</td><td class="text-right tabular-nums">{fmtCents(r.totalCents)}</td></tr>
         {#if paid && (paid.cash || paid.check || paid.payroll)}

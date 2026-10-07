@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2ee7015d-7d55-4c3d-b91c-a92ee441b435",
+  "id": "4ce428ca-3425-46cf-b8ad-ca177dc3949a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "breaks": {
@@ -989,6 +989,14 @@
           "autoincrement": false,
           "default": true
         },
+        "kiosk_show_tickets": {
+          "name": "kiosk_show_tickets",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -1218,6 +1226,13 @@
         },
         "payment_method": {
           "name": "payment_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tip_card_paid_out_at": {
+          "name": "tip_card_paid_out_at",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

@@ -18,6 +18,7 @@ export const salons = sqliteTable('salons', {
   tipCreditEnabled: integer('tip_credit_enabled', { mode: 'boolean' }).notNull().default(false),
   photoOnPunch: integer('photo_on_punch', { mode: 'boolean' }).notNull().default(true),
   kioskAutoClockIn: integer('kiosk_auto_clock_in', { mode: 'boolean' }).notNull().default(true), // PIN alone clocks in when the worker is out
+  kioskShowTickets: integer('kiosk_show_tickets', { mode: 'boolean' }).notNull().default(true), // today's ticket count per technician on the tablet
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`)
 });
 
@@ -127,6 +128,7 @@ export const tickets = sqliteTable('tickets', {
   tipCardCents: integer('tip_card_cents').notNull().default(0),
   tipCashCents: integer('tip_cash_cents').notNull().default(0),
   paymentMethod: text('payment_method'), // card | cash | other
+  tipCardPaidOutAt: text('tip_card_paid_out_at'), // set when the card tip was handed over in cash
   source: text('source').notNull().default('manual'), // manual | csv:vagaro | csv:square | csv:fresha | csv:generic
   importBatchId: text('import_batch_id'),
   externalId: text('external_id'), // id from the POS export, used to skip duplicates

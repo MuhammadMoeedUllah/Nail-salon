@@ -135,6 +135,7 @@ CREATE TABLE `salons` (
 	`tip_credit_enabled` integer DEFAULT false NOT NULL,
 	`photo_on_punch` integer DEFAULT true NOT NULL,
 	`kiosk_auto_clock_in` integer DEFAULT true NOT NULL,
+	`kiosk_show_tickets` integer DEFAULT true NOT NULL,
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL
 );
 --> statement-breakpoint
@@ -170,6 +171,7 @@ CREATE TABLE `tickets` (
 	`tip_card_cents` integer DEFAULT 0 NOT NULL,
 	`tip_cash_cents` integer DEFAULT 0 NOT NULL,
 	`payment_method` text,
+	`tip_card_paid_out_at` text,
 	`source` text DEFAULT 'manual' NOT NULL,
 	`import_batch_id` text,
 	`external_id` text,

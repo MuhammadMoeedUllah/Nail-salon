@@ -267,7 +267,16 @@ const en = {
   share_sms: 'Send by text',
   share: 'Share',
   no_tip: 'No tip',
-  more_services: 'More…'
+  more_services: 'More…',
+  tips_paid_out: 'Card tips paid out in cash',
+  tips_pay_out_btn: 'Card tips handed over in cash',
+  tips_undo_pay_out: 'Undo cash pay-out',
+  card_tips_owed_label: 'Card tips still owed',
+  tickets_today: '{n} tickets today',
+  settings_show_tickets: 'Show today\'s ticket count per technician on the tablet',
+  ny_weekly_note: 'New York: manual workers must be paid weekly (Labor Law 191). Pay runs are weekly.',
+  repeat_last: 'Repeat last',
+  import_summary_unsupported: 'This file is a period summary (one row per technician), not a list of sales. Export the detailed report instead: Square Items Detail or Transactions, Fresha Commission activity, Vagaro Transaction List.'
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -528,7 +537,16 @@ const vi: Record<MessageKey, string> = {
   share_sms: 'Gửi tin nhắn',
   share: 'Chia sẻ',
   no_tip: 'Không tip',
-  more_services: 'Thêm…'
+  more_services: 'Thêm…',
+  tips_paid_out: 'Tip thẻ đã trả tiền mặt',
+  tips_pay_out_btn: 'Đã đưa tip thẻ bằng tiền mặt',
+  tips_undo_pay_out: 'Hoàn tác trả tip',
+  card_tips_owed_label: 'Tip thẻ còn phải trả',
+  tickets_today: '{n} phiếu hôm nay',
+  settings_show_tickets: 'Hiện số phiếu hôm nay của mỗi thợ trên máy',
+  ny_weekly_note: 'New York: thợ lao động chân tay phải được trả lương hàng tuần (Labor Law 191). Kỳ lương là theo tuần.',
+  repeat_last: 'Lặp lại phiếu trước',
+  import_summary_unsupported: 'File này là bản tổng kết theo kỳ (mỗi thợ một dòng), không phải danh sách phiếu. Hãy xuất báo cáo chi tiết: Square Items Detail hoặc Transactions, Fresha Commission activity, Vagaro Transaction List.'
 };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, vi };

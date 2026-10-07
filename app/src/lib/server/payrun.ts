@@ -18,7 +18,7 @@ export interface WeekLine {
   worker: Pick<Worker, 'id' | 'displayName' | 'legalName' | 'locale' | 'payBasis' | 'hourlyRateCents' | 'dayRateCents' | 'commissionPct' | 'guaranteeCents' | 'address' | 'occupation'>;
   result: WeekResult;
   days: DayDetail[];
-  tickets: Pick<Ticket, 'id' | 'workDate' | 'ts' | 'ticketNo' | 'serviceName' | 'priceCents' | 'tipCardCents' | 'tipCashCents' | 'paymentMethod' | 'source'>[];
+  tickets: Pick<Ticket, 'id' | 'workDate' | 'ts' | 'ticketNo' | 'serviceName' | 'priceCents' | 'tipCardCents' | 'tipCashCents' | 'paymentMethod' | 'source' | 'tipCardPaidOutAt'>[];
   owedCents: number;
 }
 
@@ -76,6 +76,7 @@ export async function computeSalonWeek(salon: Salon, periodStart: string): Promi
         days: dayDetails,
         salesCents: myT.reduce((s, t) => s + t.priceCents, 0),
         tipsCardCents: myT.reduce((s, t) => s + t.tipCardCents, 0),
+        tipsCardPaidOutCents: myT.reduce((s, t) => s + (t.tipCardPaidOutAt ? t.tipCardCents : 0), 0),
         tipsCashCents: myT.reduce((s, t) => s + t.tipCashCents, 0),
         ticketCount: myT.length
       },
@@ -97,7 +98,7 @@ export async function computeSalonWeek(salon: Salon, periodStart: string): Promi
       },
       result,
       days: dayDetails,
-      tickets: myT.map((t) => ({ id: t.id, workDate: t.workDate, ts: t.ts, ticketNo: t.ticketNo, serviceName: t.serviceName, priceCents: t.priceCents, tipCardCents: t.tipCardCents, tipCashCents: t.tipCashCents, paymentMethod: t.paymentMethod, source: t.source })),
+      tickets: myT.map((t) => ({ id: t.id, workDate: t.workDate, ts: t.ts, ticketNo: t.ticketNo, serviceName: t.serviceName, priceCents: t.priceCents, tipCardCents: t.tipCardCents, tipCashCents: t.tipCashCents, paymentMethod: t.paymentMethod, source: t.source, tipCardPaidOutAt: t.tipCardPaidOutAt })),
       owedCents: complianceOwedCents(result)
     });
   }

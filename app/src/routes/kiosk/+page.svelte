@@ -6,7 +6,7 @@
 
   let { data } = $props();
 
-  type Status = { state: 'out' | 'in' | 'break'; since: string | null; staleOpen: boolean; minutesToday: number; openPunchId: string | null };
+  type Status = { state: 'out' | 'in' | 'break'; since: string | null; staleOpen: boolean; minutesToday: number; ticketsToday: number; openPunchId: string | null };
   type W = { id: string; name: string; locale: Locale; status: Status };
 
   // svelte-ignore state_referenced_locally
@@ -276,7 +276,7 @@
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {#each workers as w (w.id)}
           <button class="flex min-h-[96px] flex-col items-start justify-between rounded-2xl p-4 text-left shadow-sm ring-2 transition active:scale-[0.98] {stateColor(w.status)}" onclick={() => pick(w)}>
-            <span class="text-xl font-bold">{w.name}</span>
+            <span class="flex w-full items-baseline justify-between"><span class="text-xl font-bold">{w.name}</span>{#if data.salon.showTickets && w.status.ticketsToday}<span class="rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold ring-1 ring-stone-300">{t('tickets_today', { n: w.status.ticketsToday })}</span>{/if}</span>
             <span class="text-sm">
               {#if w.status.state === 'in'}{t('kiosk_clocked_in_since', { time: hhmm(w.status.since) })}
               {:else if w.status.state === 'break'}{t('kiosk_on_break_since', { time: hhmm(w.status.since) })}

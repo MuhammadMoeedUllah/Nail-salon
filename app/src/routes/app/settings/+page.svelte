@@ -31,10 +31,11 @@
       {/if}
       <div><label class="label" for="timezone">{t('settings_timezone')}</label><select class="input" id="timezone" name="timezone" value={data.salon.timezone} disabled={!data.isOwner}>{#each data.timezones as z}<option value={z}>{z}</option>{/each}</select></div>
       <div><label class="label" for="workweekStart">{t('settings_workweek')}</label><select class="input" id="workweekStart" name="workweekStart" value={String(data.salon.workweekStart)} disabled={!data.isOwner}>{#each [0, 1, 2, 3, 4, 5, 6] as d}<option value={String(d)}>{t(`weekday_${d}` as any)}</option>{/each}</select></div>
-      <div><label class="label" for="payFrequency">{t('pay_period')}</label><select class="input" id="payFrequency" name="payFrequency" value={data.salon.payFrequency} disabled={!data.isOwner}><option value="weekly">{t('per_week').replace('/', '')}</option><option value="biweekly">2 × {t('per_week').replace('/', '')}</option></select></div>
+      <div><label class="label" for="payFrequency">{t('pay_period')}</label><input class="input" id="payFrequency" value={t('pay_week')} disabled /><input type="hidden" name="payFrequency" value="weekly" />{#if state === 'NY'}<p class="mt-1 text-xs text-stone-500">{t('ny_weekly_note')}</p>{/if}</div>
     </div>
     <label class="flex items-center gap-2"><input type="checkbox" name="photoOnPunch" checked={data.salon.photoOnPunch} disabled={!data.isOwner} /> {t('settings_photo')}</label>
     <label class="flex items-center gap-2"><input type="checkbox" name="kioskAutoClockIn" checked={data.salon.kioskAutoClockIn} disabled={!data.isOwner} /> {t('settings_auto_in')} <span class="text-xs text-stone-500">· {t('kiosk_auto_in_hint')}</span></label>
+    <label class="flex items-center gap-2"><input type="checkbox" name="kioskShowTickets" checked={data.salon.kioskShowTickets} disabled={!data.isOwner} /> {t('settings_show_tickets')}</label>
     {#if data.isOwner}<button class="btn-primary">{t('save')}</button>{/if}
   </form>
 

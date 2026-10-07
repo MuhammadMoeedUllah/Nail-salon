@@ -30,8 +30,8 @@ export function gustoCsv(lines: WeekLine[], periodStart: string, periodEnd: stri
       'Overtime premium': dollars(r.overtimePremiumCents),
       'Minimum wage top-up': dollars(r.minWageTopupCents + r.spreadOfHoursCents),
       Bonus: '0.00',
-      'Paycheck tips': dollars(r.tipsCardCents),
-      'Cash tips': dollars(r.tipsCashCents),
+      'Paycheck tips': dollars(r.tipsCardOwedCents ?? r.tipsCardCents),
+      'Cash tips': dollars(r.tipsCashCents + (r.tipsCardPaidOutCents ?? 0)),
       workweeks: `${periodStart} - ${periodEnd}`
     };
   });
@@ -56,7 +56,7 @@ export function adpCsv(lines: WeekLine[]): string {
       'Earnings 4 Code': 'O',
       'Earnings 4 Amount': dollars(r.overtimePremiumCents + r.minWageTopupCents + r.spreadOfHoursCents),
       'Earnings 5 Code': 'T',
-      'Earnings 5 Amount': dollars(r.tipsCardCents)
+      'Earnings 5 Amount': dollars(r.tipsCardOwedCents ?? r.tipsCardCents)
     };
   });
   return Papa.unparse(rows);
@@ -86,7 +86,9 @@ export function genericCsv(lines: WeekLine[], periodStart: string, periodEnd: st
       'Spread of hours (NY)': dollars(r.spreadOfHoursCents),
       Deductions: dollars(r.deductionsCents),
       'Gross wages': dollars(r.grossWagesCents),
-      'Card tips (paycheck tips)': dollars(r.tipsCardCents),
+      'Card tips (total)': dollars(r.tipsCardCents),
+      'Card tips paid out in cash': dollars(r.tipsCardPaidOutCents ?? 0),
+      'Card tips owed (paycheck tips)': dollars(r.tipsCardOwedCents ?? r.tipsCardCents),
       'Cash tips (already received)': dollars(r.tipsCashCents),
       'Total to pay': dollars(r.totalCents),
       Flags: r.flags.join(' ')

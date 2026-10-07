@@ -1,6 +1,6 @@
 import { and, eq, isNull, desc, gte, lte, inArray } from 'drizzle-orm';
 import { db } from './db';
-import { punches, breaks, workers, type Punch, type Break, type Salon } from './db/schema';
+import { punches, breaks, workers, tickets, type Punch, type Break, type Salon } from './db/schema';
 import { newId } from './auth';
 import { recordEdit, type Actor } from './audit';
 import { localDate, minutesBetween, nowIso } from '$lib/time';
@@ -14,6 +14,7 @@ export interface WorkerStatus {
   openPunchId: string | null;
   staleOpen: boolean; // open for more than 16 hours
   minutesToday: number;
+  ticketsToday: number;
 }
 
 const STALE_HOURS = 16;
@@ -54,6 +55,10 @@ export async function statusesFor(salon: Salon, workerIds: string[]): Promise<Re
     .where(and(inArray(punches.workerId, workerIds), isNull(punches.voidedAt), isNull(punches.tsOut)));
   const all = [...rows, ...open.filter((o) => !rows.some((r) => r.id === o.id))];
   const brs = all.length ? await db.select().from(breaks).where(inArray(breaks.punchId, all.map((p) => p.id))) : [];
+  const tk = await db
+    .select({ workerId: tickets.workerId })
+    .from(tickets)
+    .where(and(inArray(tickets.workerId, workerIds), eq(tickets.workDate, today), isNull(tickets.voidedAt)));
   for (const id of workerIds) {
     const mine = all.filter((p) => p.workerId === id);
     const op = mine.find((p) => !p.tsOut) ?? null;
@@ -65,7 +70,8 @@ export async function statusesFor(salon: Salon, workerIds: string[]): Promise<Re
       since: openBreak?.tsStart ?? op?.tsIn ?? null,
       openPunchId: op?.id ?? null,
       staleOpen: !!op && minutesBetween(op.tsIn, nowIso()) > STALE_HOURS * 60,
-      minutesToday
+      minutesToday,
+      ticketsToday: tk.filter((x) => x.workerId === id).length
     };
   }
   return out;

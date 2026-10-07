@@ -75,6 +75,7 @@ export const load: PageServerLoad = async (event) => {
       tipCardCents: t.tipCardCents,
       tipCashCents: t.tipCashCents,
       paymentMethod: t.paymentMethod,
+      tipCardPaidOut: !!t.tipCardPaidOutAt,
       source: t.source,
       voidedAt: t.voidedAt,
       voidReason: t.voidReason
@@ -168,6 +169,27 @@ export const actions: Actions = {
     await db.update(punches).set(after).where(eq(punches.id, id));
     await recordDiff({ salonId: salon.id, entity: 'punch', entityId: id, actor, reason }, { tsIn: p.tsIn, tsOut: p.tsOut, manualBreakMinutes: p.manualBreakMinutes }, after);
     return { ok: true, form: 'punch' };
+  },
+
+  payOutTips: async (event) => {
+    const { salon, user } = requireUser(event);
+    const f = await event.request.formData();
+    const workerId = String(f.get('workerId') ?? '');
+    const date = String(f.get('date') ?? '');
+    const undo = f.get('undo') === '1';
+    if (!DATE.test(date) || !workerId) return fail(400, { error: 'invalid', form: 'tips' });
+    const rows = await db
+      .select()
+      .from(tickets)
+      .where(and(eq(tickets.salonId, salon.id), eq(tickets.workerId, workerId), eq(tickets.workDate, date)));
+    const target = rows.filter((t) => !t.voidedAt && t.tipCardCents > 0 && (undo ? !!t.tipCardPaidOutAt : !t.tipCardPaidOutAt));
+    const now = nowIso();
+    for (const t of target) {
+      await db.update(tickets).set({ tipCardPaidOutAt: undo ? null : now }).where(eq(tickets.id, t.id));
+    }
+    const total = target.reduce((s, t) => s + t.tipCardCents, 0);
+    await recordEdit({ salonId: salon.id, entity: 'ticket', entityId: `${workerId}:${date}`, action: 'update', field: 'tip_card_paid_out', oldValue: undo ? total : 0, newValue: undo ? 0 : total, reason: undo ? 'undo cash pay-out' : 'card tips handed over in cash', actor: { type: 'user', id: user.id, name: user.name } });
+    return { ok: true, form: 'tips' };
   },
 
   clockOutNow: async (event) => {

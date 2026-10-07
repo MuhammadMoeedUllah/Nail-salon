@@ -138,11 +138,33 @@ See `app/src/lib/server/db/schema.ts`. Tables: salons, users, sessions, devices,
 | 9 | Settings, devices, users | done |
 | 10 | Dockerfile, Fly config, README, smoke tests | done |
 
+## 8a. Click budget after the UX pass (research 09)
+
+| Flow | Before | Now | How |
+|---|---|---|---|
+| Technician clocks in | tap name, 4 digits, tap Clock in (6) | tap name, 4 digits (5), Undo for 8 s | PIN alone clocks in when the technician is out; the only remaining decision (out or break) still gets a button |
+| Technician clocks out | 6 | 6 | Clock out is the primary button; break is secondary |
+| Add a standard ticket | pick technician, type service, type price, type tip, add (5 plus typing) | tap technician, tap service, tap tip, add (4, no typing); Repeat last (1) | Chips and tiles pre-fill the price; quick tip buttons 3, 5, 10, 20; payment, ticket number and time are folded away |
+| Weekly pay | open week, Approve, Mark as paid, confirm (4) | open week from the home card, Approve, Mark all paid by check today (3) | Adjust opens the cash/check/payroll split only when the default is wrong |
+| Send a statement | Copy link, open Messages, paste (3+) | Share or Send by text (1) | Web Share API on phones; sms: fallback |
+| Card tips paid in cash | not possible | one tap per technician per day | Moves the amount to "already paid", keeps it in taxable tips |
+| Forgot to clock out | fix time with a reason (3) | Clock out now (1) | Reason is recorded automatically |
+
+## 8b. Pilot questions answered by research 10
+
+1. Turn board: optional, on by default, ticket count only; never money or tips on the shared screen. Turn rules (half turns, request versus walk-in) are not encoded; ask each pilot which regime they run.
+2. Cadence: weekly, Monday to Sunday by default; New York Labor Law 191 requires weekly pay for manual workers, so the biweekly option is removed from the UI.
+3. Card tips: counted as owed by default; a per-day "handed over in cash" action moves them to "already paid" and the Gusto export maps them to Cash tips.
+
+## 8c. Rule changes from research 07
+
+Applied to `app/src/lib/rules/rules.json`: 2027 minimum wages for CT, NJ, VA, WA and CA with 2026 rows closed; New York frozen at $17.00 and $16.00; New York tip credit recorded as not allowed since 2020-12-31; New York call-in pay recorded as informational. Spread of hours keeps the weekly-offset formula. Split-shift detection (12 NYCRR 142-2.17) is a v1.1 item.
+
 ## 9. Out of scope for v1
 
 Booking, POS, payments, payroll tax filing, W-2s, SMS, native apps, turn assignment, multi-location. California piece-rate rest pay (Labor Code 226.2) is flagged in the rules table but not computed; sell in California only after it ships.
 
-## 10. Open questions for the pilot salons
+## 10. Open questions for the pilot salons (original list; see 8b for the research answers)
 
 1. Do owners want the tablet to show today's ticket count per technician (a turn board), or does that invite disputes at the front desk?
 2. Weekly or biweekly: the research says weekly by custom and biweekly on Gusto or ADP. Default is weekly; the setting exists.
