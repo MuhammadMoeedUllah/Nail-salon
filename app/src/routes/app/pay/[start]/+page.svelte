@@ -7,6 +7,7 @@
   const t = $derived(makeT(data.locale));
   let paying = $state(false);
   let reopening = $state(false);
+  let detail = $state(false);
   const basisShort = (l: any) => {
     const w = l.worker;
     switch (w.payBasis) {
@@ -38,7 +39,12 @@
     {#if data.status === 'draft'}
       <form method="post" action="?/approve" use:enhance><button class="btn-primary" disabled={data.isCurrentWeek && data.totals.minutes === 0}>{t('pay_approve')}</button></form>
     {:else if data.status === 'approved'}
-      <button class="btn-primary" onclick={() => (paying = !paying)}>{t('pay_mark_paid')}</button>
+      <form method="post" action="?/pay" use:enhance>
+        <input type="hidden" name="paidOn" value={data.today} />
+        {#each data.lines as l}<input type="hidden" name="check_{l.worker.id}" value={dollars(l.result.totalCents)} />{/each}
+        <button class="btn-primary">✓ {t('mark_paid_check_today')}</button>
+      </form>
+      <button class="btn-secondary" onclick={() => (paying = !paying)}>{t('adjust')}</button>
       <button class="btn-secondary" onclick={() => (reopening = !reopening)}>{t('pay_reopen')}</button>
     {:else}
       <button class="btn-secondary" onclick={() => (reopening = !reopening)}>{t('pay_reopen')}</button>
@@ -58,7 +64,7 @@
   </form>
 {/if}
 
-<div class="mb-4 grid gap-3 sm:grid-cols-5">
+<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
   <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('hours')}</div><div class="text-xl font-bold tabular-nums">{fmtMinutes(data.totals.minutes)}</div></div>
   <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('gross_wages')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(data.totals.gross)}</div></div>
   <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('tip_card')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(data.totals.tipsCard)}</div></div>
@@ -66,6 +72,7 @@
   <div class="card py-3 {data.totals.owed > 0 ? 'ring-2 ring-red-300' : ''}"><div class="text-xs uppercase text-stone-500">{t('owed_by_law')}</div><div class="text-xl font-bold tabular-nums {data.totals.owed > 0 ? 'text-red-700' : 'text-emerald-700'}">{fmtCents(data.totals.owed)}</div></div>
 </div>
 
+<div class="mb-2 flex justify-end"><label class="flex items-center gap-2 text-sm text-stone-600"><input type="checkbox" bind:checked={detail} /> {t('details')}</label></div>
 <form method="post" action="?/pay" use:enhance>
   <div class="card overflow-x-auto p-0">
     <table class="table">
@@ -73,9 +80,10 @@
         <tr>
           <th>{t('technician')}</th><th class="hidden xl:table-cell">{t('pay_basis')}</th>
           <th class="text-right">{t('days')}</th><th class="text-right">{t('hours')}</th><th class="text-right">{t('overtime_hours')}</th>
-          <th class="text-right">{t('sales')}</th><th class="text-right">{t('commission')}</th><th class="text-right">{t('day_rate')}/{t('guarantee')}</th>
-          <th class="text-right">{t('regular_rate')}</th><th class="text-right">{t('min_wage_topup')}</th><th class="text-right">{t('overtime_premium')}</th>
-          <th class="text-right">{t('gross_wages')}</th><th class="text-right">{t('tip_card')}</th><th class="text-right">{t('tip_cash')}</th><th class="text-right">{t('total_pay')}</th>
+          {#if detail}<th class="text-right">{t('sales')}</th><th class="text-right">{t('commission')}</th><th class="text-right">{t('day_rate')}/{t('guarantee')}</th><th class="text-right">{t('regular_rate')}</th>{/if}
+          <th class="text-right">{t('owed_by_law')}</th>
+          {#if detail}<th class="text-right">{t('min_wage_topup')}</th><th class="text-right">{t('overtime_premium')}</th>{/if}
+          <th class="text-right">{t('gross_wages')}</th>{#if detail}<th class="text-right">{t('tip_card')}</th><th class="text-right">{t('tip_cash')}</th>{/if}<th class="text-right">{t('total_pay')}</th>
           {#if paying}<th>{t('cash')}</th><th>{t('paid_check')}</th><th>{t('paid_payroll')}</th>{/if}
           <th></th>
         </tr>
@@ -96,15 +104,22 @@
             <td class="text-right tabular-nums">{r.daysWorked}</td>
             <td class="text-right tabular-nums">{fmtHours(r.minutesWorked)}</td>
             <td class="text-right tabular-nums {r.overtimeMinutes ? 'cell-owed' : ''}">{r.overtimeMinutes ? fmtHours(r.overtimeMinutes) : '—'}</td>
-            <td class="text-right tabular-nums">{fmtCents(r.salesCents)}</td>
-            <td class="text-right tabular-nums">{fmtCents(r.commissionCents)}</td>
-            <td class="text-right tabular-nums">{r.baseCents ? fmtCents(r.baseCents) : '—'}</td>
-            <td class="text-right tabular-nums text-xs">{r.minutesWorked ? fmtRate(r.regularRate) : '—'}</td>
-            <td class="text-right tabular-nums {r.minWageTopupCents ? 'cell-owed' : ''}">{r.minWageTopupCents ? fmtCents(r.minWageTopupCents) : '—'}</td>
-            <td class="text-right tabular-nums {r.overtimePremiumCents ? 'cell-owed' : ''}">{r.overtimePremiumCents ? fmtCents(r.overtimePremiumCents) : '—'}</td>
+            {#if detail}
+              <td class="text-right tabular-nums">{fmtCents(r.salesCents)}</td>
+              <td class="text-right tabular-nums">{fmtCents(r.commissionCents)}</td>
+              <td class="text-right tabular-nums">{r.baseCents ? fmtCents(r.baseCents) : '—'}</td>
+              <td class="text-right tabular-nums text-xs">{r.minutesWorked ? fmtRate(r.regularRate) : '—'}</td>
+            {/if}
+            <td class="text-right tabular-nums {l.owedCents ? 'cell-owed' : ''}">{l.owedCents ? fmtCents(l.owedCents) : '—'}</td>
+            {#if detail}
+              <td class="text-right tabular-nums {r.minWageTopupCents ? 'cell-owed' : ''}">{r.minWageTopupCents ? fmtCents(r.minWageTopupCents) : '—'}</td>
+              <td class="text-right tabular-nums {r.overtimePremiumCents ? 'cell-owed' : ''}">{r.overtimePremiumCents ? fmtCents(r.overtimePremiumCents) : '—'}</td>
+            {/if}
             <td class="text-right font-semibold tabular-nums">{fmtCents(r.grossWagesCents)}</td>
-            <td class="text-right tabular-nums">{fmtCents(r.tipsCardCents)}</td>
-            <td class="text-right tabular-nums">{fmtCents(r.tipsCashCents)}</td>
+            {#if detail}
+              <td class="text-right tabular-nums">{fmtCents(r.tipsCardCents)}</td>
+              <td class="text-right tabular-nums">{fmtCents(r.tipsCashCents)}</td>
+            {/if}
             <td class="text-right font-bold tabular-nums">{fmtCents(r.totalCents)}</td>
             {#if paying}
               <td><input class="input w-24 py-1" name="cash_{l.worker.id}" inputmode="decimal" value={l.paid?.cash ? dollars(l.paid.cash) : ''} /></td>

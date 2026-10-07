@@ -40,7 +40,8 @@ const SalonSchema = z.object({
   workweekStart: z.coerce.number().int().min(0).max(6),
   payFrequency: z.enum(['weekly', 'biweekly']),
   defaultLocale: z.enum(['en', 'vi']),
-  photoOnPunch: z.string().optional()
+  photoOnPunch: z.string().optional(),
+  kioskAutoClockIn: z.string().optional()
 });
 
 export const actions: Actions = {
@@ -61,7 +62,8 @@ export const actions: Actions = {
       workweekStart: v.workweekStart,
       payFrequency: v.payFrequency,
       defaultLocale: v.defaultLocale,
-      photoOnPunch: v.photoOnPunch === 'on'
+      photoOnPunch: v.photoOnPunch === 'on',
+      kioskAutoClockIn: v.kioskAutoClockIn === 'on'
     };
     await db.update(salons).set(after).where(eq(salons.id, salon.id));
     await recordDiff({ salonId: salon.id, entity: 'salon', entityId: salon.id, actor: { type: 'user', id: user.id, name: user.name } }, salon as any, after as any);

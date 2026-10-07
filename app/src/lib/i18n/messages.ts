@@ -247,7 +247,27 @@ const en = {
   active_techs: 'Active technicians',
   classification: 'Tax status',
   classification_warning: 'A technician on a commission split or day rate who works your hours is usually an employee (W-2). Paying 1099 on a split is the pattern cited in enforcement cases. Ask a professional.',
-  ny_bond_hint: 'New York requires a wage bond for nail salons; the amount depends on the number of employees.'
+  ny_bond_hint: 'New York requires a wage bond for nail salons; the amount depends on the number of employees.',
+  undo: 'Undo',
+  undone: 'Undone. You are not clocked in.',
+  kiosk_auto_in_hint: 'Entering the PIN clocks in right away when the technician is out.',
+  settings_auto_in: 'PIN alone clocks in (one tap less)',
+  week_card_title: 'This week so far',
+  week_card_open: 'Open pay run',
+  still_in_count: '{n} still clocked in',
+  open_punch_count: '{n} clock-in without clock-out',
+  clock_out_now: 'Clock out now',
+  forgot_out_reason: 'Forgot to clock out',
+  quick_tip: 'Tip',
+  custom: 'Other',
+  added: 'Added',
+  mark_paid_check_today: 'Mark all paid by check today',
+  adjust: 'Adjust',
+  details: 'Details',
+  share_sms: 'Send by text',
+  share: 'Share',
+  no_tip: 'No tip',
+  more_services: 'More…'
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -488,7 +508,27 @@ const vi: Record<MessageKey, string> = {
   active_techs: 'Thợ đang làm',
   classification: 'Khai thuế',
   classification_warning: 'Thợ ăn chia hoặc bao lương làm theo giờ của tiệm thường là nhân viên (W-2). Trả 1099 cho thợ ăn chia là lỗi hay bị phạt. Hãy hỏi chuyên gia.',
-  ny_bond_hint: 'New York bắt buộc tiệm nail mua wage bond; mức bond tùy theo số nhân viên.'
+  ny_bond_hint: 'New York bắt buộc tiệm nail mua wage bond; mức bond tùy theo số nhân viên.',
+  undo: 'Hoàn tác',
+  undone: 'Đã hủy. Bạn chưa vào ca.',
+  kiosk_auto_in_hint: 'Nhập PIN là vào ca ngay khi thợ đang ở ngoài ca.',
+  settings_auto_in: 'Chỉ cần PIN là vào ca (bớt một lần bấm)',
+  week_card_title: 'Tuần này đến giờ',
+  week_card_open: 'Mở bảng tính lương',
+  still_in_count: '{n} thợ còn trong ca',
+  open_punch_count: '{n} ca chưa ra ca',
+  clock_out_now: 'Ra ca ngay',
+  forgot_out_reason: 'Quên ra ca',
+  quick_tip: 'Tip',
+  custom: 'Khác',
+  added: 'Đã thêm',
+  mark_paid_check_today: 'Đánh dấu đã trả hết bằng check hôm nay',
+  adjust: 'Điều chỉnh',
+  details: 'Chi tiết',
+  share_sms: 'Gửi tin nhắn',
+  share: 'Chia sẻ',
+  no_tip: 'Không tip',
+  more_services: 'Thêm…'
 };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, vi };

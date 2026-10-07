@@ -10,6 +10,9 @@ import { newId } from '$lib/server/auth';
 import { recordEdit, recordDiff } from '$lib/server/audit';
 import { localDate, localTime, localToIso, nowIso, addDays } from '$lib/time';
 import { parseDollars } from '$lib/money';
+import { computeSalonWeek } from '$lib/server/payrun';
+import { weekStart } from '$lib/time';
+import { applyPunch } from '$lib/server/punches';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -28,7 +31,20 @@ export const load: PageServerLoad = async (event) => {
   const svc = await db.select().from(services).where(and(eq(services.salonId, salon.id), eq(services.active, true))).orderBy(services.sortOrder);
   const st = await statusesFor(salon, ws.filter((w) => w.active).map((w) => w.id));
   const tz = salon.timezone;
+  const wkStart = weekStart(date, salon.workweekStart);
+  const week = await computeSalonWeek(salon, wkStart);
+  const statuses = Object.values(st);
   return {
+    week: {
+      start: wkStart,
+      owedCents: week.totals.owedCents,
+      grossCents: week.totals.grossWagesCents,
+      minutes: week.totals.minutes,
+      salesCents: week.totals.salesCents,
+      stillIn: statuses.filter((x) => x.state !== 'out').length,
+      stale: statuses.filter((x) => x.staleOpen).length,
+      flagged: week.lines.filter((l) => l.result.flags.some((f) => f === 'OPEN_PUNCH' || f === 'TICKETS_WITHOUT_HOURS')).length
+    },
     locale,
     date,
     today,
@@ -82,6 +98,7 @@ export const actions: Actions = {
   addTicket: async (event) => {
     const { salon, user } = requireUser(event);
     const raw = Object.fromEntries(await event.request.formData()) as Record<string, string>;
+    if (!raw.serviceName && raw.service_free) raw.serviceName = raw.service_free;
     const p = TicketSchema.safeParse(raw);
     const price = parseDollars(raw.price);
     const tipCard = parseDollars(raw.tipCard ?? '') ?? 0;
@@ -150,6 +167,17 @@ export const actions: Actions = {
     const after = { tsIn, tsOut, manualBreakMinutes: brk };
     await db.update(punches).set(after).where(eq(punches.id, id));
     await recordDiff({ salonId: salon.id, entity: 'punch', entityId: id, actor, reason }, { tsIn: p.tsIn, tsOut: p.tsOut, manualBreakMinutes: p.manualBreakMinutes }, after);
+    return { ok: true, form: 'punch' };
+  },
+
+  clockOutNow: async (event) => {
+    const { salon, user } = requireUser(event);
+    const f = await event.request.formData();
+    const workerId = String(f.get('workerId') ?? '');
+    const w = await db.select().from(workers).where(and(eq(workers.id, workerId), eq(workers.salonId, salon.id))).get();
+    if (!w) return fail(404, { error: 'not_found', form: 'punch' });
+    const r = await applyPunch({ salon, workerId, action: 'out', actor: { type: 'user', id: user.id, name: user.name } });
+    if (!r.ok) return fail(409, { error: r.error, form: 'punch' });
     return { ok: true, form: 'punch' };
   },
 

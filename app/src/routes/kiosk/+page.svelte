@@ -20,6 +20,9 @@
   let pinError = $state('');
   let busy = $state(false);
   let doneMsg = $state('');
+  let undoPunchId = $state<string | null>(null);
+  let undoLeft = $state(0);
+  let undoTimer: ReturnType<typeof setInterval> | undefined;
   let offlineMsg = $state('');
   let queued = $state(0);
   let now = $state(new Date());
@@ -127,8 +130,13 @@
       const j = await r.json();
       if (r.ok && j.ok) {
         selected = { ...selected!, status: j.status };
-        screen = 'actions';
         online = true;
+        if (data.salon.autoClockIn && j.status.state === 'out' && !j.status.staleOpen) {
+          busy = false;
+          await act('in');
+          return;
+        }
+        screen = 'actions';
       } else {
         pinError = j.error === 'locked' ? t('kiosk_locked') : t('kiosk_wrong_pin');
         pin = '';
@@ -154,7 +162,7 @@
       const r = await fetch('/kiosk/api/punch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const j = await r.json();
       if (r.ok && j.ok) {
-        finish(action, j.ts, j.minutesToday, false);
+        finish(action, j.ts, j.minutesToday, false, action === 'in' ? j.punchId : null);
       } else if (j.error === 'already_in' || j.error === 'not_in' || j.error === 'already_on_break' || j.error === 'not_on_break') {
         selected = { ...selected, status: j.status };
         pinError = '';
@@ -173,14 +181,42 @@
     }
   }
 
-  function finish(action: string, ts: string, minutesToday: number, offline: boolean) {
+  async function undo() {
+    if (!undoPunchId || !selected) return;
+    const pid = undoPunchId;
+    undoPunchId = null;
+    clearInterval(undoTimer);
+    try {
+      const r = await fetch('/kiosk/api/punch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ workerId: selected.id, pin, action: 'undo', punchId: pid }) });
+      const j = await r.json();
+      doneMsg = j.ok ? t('undone') : t('invalid');
+      offlineMsg = '';
+      resetIdle(3000);
+    } catch {
+      doneMsg = t('invalid');
+    }
+  }
+
+  function finish(action: string, ts: string, minutesToday: number, offline: boolean, punchId: string | null = null) {
+    clearInterval(undoTimer);
+    undoPunchId = offline ? null : punchId;
+    if (undoPunchId) {
+      undoLeft = 8;
+      undoTimer = setInterval(() => {
+        undoLeft -= 1;
+        if (undoLeft <= 0) {
+          clearInterval(undoTimer);
+          undoPunchId = null;
+          if (screen === 'done') goGrid();
+        }
+      }, 1000);
+    }
     doneMsg = action === 'in' ? t('kiosk_done_in', { time: hhmm(ts) }) : action === 'out' ? t('kiosk_done_out', { time: hhmm(ts), hours: fmtMinutes(minutesToday) }) : `${hhmm(ts)} ✓`;
     offlineMsg = offline ? t('kiosk_offline') : '';
     if (!cameraOk && data.salon.photoOnPunch && (action === 'in' || action === 'out')) offlineMsg += (offlineMsg ? ' ' : '') + t('kiosk_camera_denied');
     screen = 'done';
-    pin = '';
     stopCamera();
-    resetIdle(4000);
+    resetIdle(undoPunchId ? 9000 : 4000);
   }
 
   onMount(() => {
@@ -201,6 +237,7 @@
     };
   });
   onDestroy(() => {
+    clearInterval(undoTimer);
     clearInterval(clockTimer);
     clearInterval(flushTimer);
     clearTimeout(idleTimer);
@@ -318,7 +355,10 @@
         <div class="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100 text-5xl text-emerald-700">✓</div>
         <p class="text-2xl font-bold">{doneMsg}</p>
         {#if offlineMsg}<p class="mt-3 max-w-md rounded-lg bg-amber-50 p-3 text-amber-800">{offlineMsg}</p>{/if}
-        <button class="btn-ghost mt-6" onclick={goGrid}>{t('close')}</button>
+        <div class="mt-6 flex gap-3">
+          {#if undoPunchId}<button class="btn-secondary" onclick={undo}>↶ {t('undo')} ({undoLeft})</button>{/if}
+          <button class="btn-ghost" onclick={goGrid}>{t('close')}</button>
+        </div>
       </div>
     {/if}
   </main>

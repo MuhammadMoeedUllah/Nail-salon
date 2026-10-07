@@ -8,7 +8,8 @@ import { savePhoto } from '$lib/server/photos';
 const Body = z.object({
   workerId: z.string().min(1),
   pin: z.string().regex(/^\d{4,6}$/),
-  action: z.enum(['in', 'out', 'break_start', 'break_end', 'verify']),
+  action: z.enum(['in', 'out', 'break_start', 'break_end', 'verify', 'undo']),
+  punchId: z.string().optional(),
   clientTs: z.string().optional(),
   offline: z.boolean().optional(),
   clientId: z.string().max(64).optional(),
@@ -29,6 +30,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   if (b.action === 'verify') {
     const st = await statusesFor(salon, [worker.id]);
     return json({ ok: true, worker: { id: worker.id, name: worker.displayName, locale: worker.locale }, status: st[worker.id] });
+  }
+
+  if (b.action === 'undo') {
+    const { undoPunch } = await import('$lib/server/punches');
+    const ok = await undoPunch(salon, worker.id, b.punchId ?? '', locals.device ? { type: 'device', id: locals.device.id, name: `${locals.device.name} · ${worker.displayName}` } : { type: 'user', id: locals.user?.id, name: locals.user?.name });
+    const st = await statusesFor(salon, [worker.id]);
+    return json({ ok, status: st[worker.id] }, { status: ok ? 200 : 409 });
   }
 
   const actor = locals.device

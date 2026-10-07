@@ -17,6 +17,7 @@ export const salons = sqliteTable('salons', {
   defaultLocale: text('default_locale').notNull().default('en'),
   tipCreditEnabled: integer('tip_credit_enabled', { mode: 'boolean' }).notNull().default(false),
   photoOnPunch: integer('photo_on_punch', { mode: 'boolean' }).notNull().default(true),
+  kioskAutoClockIn: integer('kiosk_auto_clock_in', { mode: 'boolean' }).notNull().default(true), // PIN alone clocks in when the worker is out
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`)
 });
 

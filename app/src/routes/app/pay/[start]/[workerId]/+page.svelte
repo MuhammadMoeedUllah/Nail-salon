@@ -5,9 +5,18 @@
   let { data } = $props();
   const t = $derived(makeT(data.uiLocale));
   let copied = $state(false);
-  async function copy() {
-    const url = `${page.url.origin}/s/${data.shareToken}`;
-    await navigator.clipboard.writeText(url);
+  const shareUrl = $derived(`${page.url.origin}/s/${data.shareToken}?lang=${data.locale}`);
+  const smsBody = $derived(encodeURIComponent(`${t('statement')} ${data.period.start} – ${data.period.end}: ${shareUrl}`));
+  async function share() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: t('statement'), text: `${data.line.worker.displayName} · ${data.period.start}`, url: shareUrl });
+        return;
+      } catch {
+        /* user cancelled */
+      }
+    }
+    await navigator.clipboard.writeText(shareUrl);
     copied = true;
     setTimeout(() => (copied = false), 2000);
   }
@@ -23,7 +32,8 @@
     <button class="btn-secondary" onclick={() => window.print()}>🖨 {t('st_print')}</button>
     {#if data.shareToken}
       <a class="btn-secondary" href="/s/{data.shareToken}/pdf?lang={data.locale}">⇩ PDF</a>
-      <button class="btn-primary" onclick={copy}>{copied ? t('st_link_copied') : t('st_share')}</button>
+      <a class="btn-secondary" href="sms:?&body={smsBody}">✉ {t('share_sms')}</a>
+      <button class="btn-primary" onclick={share}>{copied ? t('st_link_copied') : t('st_share')}</button>
     {:else}
       <span class="self-center text-sm text-stone-500">{t('pay_status_draft')} · {t('pay_approve_hint')}</span>
     {/if}

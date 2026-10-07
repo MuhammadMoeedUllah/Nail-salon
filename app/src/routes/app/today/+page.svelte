@@ -34,10 +34,32 @@
   let addingPunch = $state(false);
   let price = $state('');
   let lastWorker = $state('');
+  let serviceName = $state('');
+  let tipCard = $state('');
+  let tipCash = $state('');
+  let payMethod = $state('');
+  let showAllServices = $state(false);
+  let toast = $state('');
+  const quickTips = [0, 3, 5, 10];
+  function pickService(s: { en: string; vi: string; price: number }) {
+    serviceName = svcName(s);
+    price = dollars(s.price);
+  }
+  function setTip(kind: 'card' | 'cash', v: number) {
+    if (kind === 'card') { tipCard = v ? String(v) : ''; if (v) tipCash = ''; }
+    else { tipCash = v ? String(v) : ''; if (v) tipCard = ''; }
+    if (v && !payMethod) payMethod = kind;
+  }
   $effect(() => {
     if (form?.ok && form.form === 'ticket') {
       price = '';
+      serviceName = '';
+      tipCard = '';
+      tipCash = '';
+      payMethod = '';
       lastWorker = form.lastWorkerId ?? '';
+      toast = t('added');
+      setTimeout(() => (toast = ''), 1800);
     }
     if (form?.ok && (form.form === 'punch' || form.form === 'addPunch')) {
       fixing = null;
@@ -50,20 +72,34 @@
 
 <svelte:head><title>{t('today_title')} · {fmtDateLong(data.date, data.locale)}</title></svelte:head>
 
-<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
   <div class="flex items-center gap-2">
     <a class="btn-secondary px-3" href="/app/today?date={data.prev}" aria-label="previous day">‹</a>
-    <h1 class="text-2xl font-bold">{data.date === data.today ? t('today') : ''} <span class="text-stone-500">{fmtDateLong(data.date, data.locale)}</span></h1>
+    <h1 class="text-xl font-bold sm:text-2xl">{data.date === data.today ? t('today') + ' · ' : ''}<span class="text-stone-500">{fmtDateLong(data.date, data.locale)}</span></h1>
     <a class="btn-secondary px-3" href="/app/today?date={data.next}" aria-label="next day">›</a>
-    <form method="get" class="ml-2"><input class="input py-2" type="date" name="date" value={data.date} onchange={(e) => (e.currentTarget as HTMLInputElement).form?.requestSubmit()} /></form>
+    <form method="get" class="hidden sm:block"><input class="input py-2" type="date" name="date" value={data.date} onchange={(e) => (e.currentTarget as HTMLInputElement).form?.requestSubmit()} /></form>
   </div>
-  <div class="flex gap-2">
-    <a class="btn-secondary" href="/app/tickets/import">⇪ {t('import_csv')}</a>
-    <button class="btn-secondary" onclick={() => (addingPunch = !addingPunch)}>{t('add_punch')}</button>
+  <div class="flex gap-2 text-sm">
+    <a class="btn-secondary py-2" href="/app/tickets/import">⇪ {t('import_csv')}</a>
+    <button class="btn-secondary py-2" onclick={() => (addingPunch = !addingPunch)}>{t('add_punch')}</button>
   </div>
 </div>
 
-<div class="mb-4 grid gap-3 sm:grid-cols-4">
+<a href="/app/pay/{data.week.start}" class="card mb-4 flex flex-wrap items-center justify-between gap-3 border-l-4 {data.week.owedCents > 0 ? 'border-red-500' : 'border-emerald-500'} hover:bg-stone-50">
+  <div>
+    <div class="text-xs uppercase text-stone-500">{t('week_card_title')} · {t('week_of', { start: fmtDateLong(data.week.start, data.locale) })}</div>
+    <div class="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+      <span class="text-2xl font-bold tabular-nums {data.week.owedCents > 0 ? 'text-red-700' : 'text-emerald-700'}">{fmtCents(data.week.owedCents)} <span class="text-sm font-normal text-stone-600">{t('owed_by_law')}</span></span>
+      <span class="text-sm text-stone-600">{t('gross_wages')} <strong class="tabular-nums">{fmtCents(data.week.grossCents)}</strong></span>
+      <span class="text-sm text-stone-600">{t('hours')} <strong class="tabular-nums">{fmtMinutes(data.week.minutes)}</strong></span>
+      {#if data.week.stillIn}<span class="badge bg-emerald-100 text-emerald-800">{t('still_in_count', { n: data.week.stillIn })}</span>{/if}
+      {#if data.week.stale}<span class="badge bg-amber-100 text-amber-800">{t('open_punch_count', { n: data.week.stale })}</span>{/if}
+    </div>
+  </div>
+  <span class="btn-secondary">{t('week_card_open')} ›</span>
+</a>
+
+<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
   <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('sales')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(totals.sales)}</div></div>
   <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('tip_card')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(totals.tipCard)}</div></div>
   <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('tip_cash')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(totals.tipCash)}</div></div>
@@ -83,7 +119,7 @@
 {/if}
 
 <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
-  <section class="space-y-4">
+  <section class="order-last space-y-4 lg:order-none">
     {#each byWorker as w (w.id)}
       <div class="card">
         <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
@@ -101,6 +137,9 @@
               <span class="tabular-nums">{p.inLocal} → {p.outLocal ?? '…'}{#if p.breakMinutes} <span class="text-stone-500">(−{p.breakMinutes}m)</span>{/if}</span>
               {#if p.minutes !== null}<span class="font-semibold tabular-nums">{fmtMinutes(p.minutes)}</span>{/if}
               {#if p.source !== 'tablet'}<span class="badge bg-stone-200 text-stone-700">{p.source}</span>{/if}
+              {#if !p.outLocal}
+                <form method="post" action="?/clockOutNow" use:enhance class="inline"><input type="hidden" name="workerId" value={w.id} /><button class="rounded-md bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">{t('clock_out_now')}</button></form>
+              {/if}
               <button class="text-brand-700 underline" onclick={() => (fixing = fixing === p.id ? null : p.id)}>{t('fix_time')}</button>
             </div>
             {#if fixing === p.id}
@@ -164,28 +203,56 @@
 
   <aside class="lg:sticky lg:top-20 lg:self-start">
     <form method="post" action="?/addTicket" use:enhance class="card space-y-3">
-      <h2 class="font-bold">{t('add_ticket')}</h2>
+      <div class="flex items-center justify-between"><h2 class="font-bold">{t('add_ticket')}</h2>{#if toast}<span class="badge bg-emerald-100 text-emerald-800">✓ {toast}</span>{/if}</div>
       {#if form?.form === 'ticket' && form?.error}<p class="rounded-lg bg-red-50 p-2 text-sm text-red-700">{t('invalid')}</p>{/if}
       <input type="hidden" name="date" value={data.date} />
-      <div><label class="label" for="tk-w">{t('technician')}</label>
-        <select class="input" id="tk-w" name="workerId" required value={lastWorker}>
-          <option value="" disabled>—</option>
-          {#each data.workers.filter((w) => w.active) as w}<option value={w.id}>{w.name}</option>{/each}
-        </select></div>
-      <div><label class="label" for="tk-s">{t('service')}</label>
-        <input class="input" id="tk-s" name="serviceName" list="svc" required autocomplete="off" oninput={(e) => { const m = data.services.find((s) => svcName(s) === (e.currentTarget as HTMLInputElement).value); if (m && !price) price = dollars(m.price); }} />
-        <datalist id="svc">{#each data.services as s}<option value={svcName(s)}></option>{/each}</datalist></div>
-      <div class="grid grid-cols-3 gap-2">
-        <div><label class="label" for="tk-p">{t('price')} $</label><input class="input" id="tk-p" name="price" inputmode="decimal" required bind:value={price} /></div>
-        <div><label class="label" for="tk-tc">{t('tip_card')} $</label><input class="input" id="tk-tc" name="tipCard" inputmode="decimal" /></div>
-        <div><label class="label" for="tk-tx">{t('tip_cash')} $</label><input class="input" id="tk-tx" name="tipCash" inputmode="decimal" /></div>
+      <input type="hidden" name="workerId" value={lastWorker} />
+      <input type="hidden" name="serviceName" value={serviceName} />
+      <input type="hidden" name="paymentMethod" value={payMethod} />
+      <!-- 1. technician: one tap -->
+      <div class="flex flex-wrap gap-1.5">
+        {#each data.workers.filter((w) => w.active) as w}
+          <button type="button" class="rounded-full px-3 py-2 text-sm font-semibold ring-1 transition {lastWorker === w.id ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-stone-800 ring-stone-300 hover:bg-stone-100'}" onclick={() => (lastWorker = w.id)}>{w.name}</button>
+        {/each}
       </div>
-      <div class="grid grid-cols-3 gap-2">
-        <div><label class="label" for="tk-pm">{t('payment')}</label><select class="input" id="tk-pm" name="paymentMethod"><option value="">—</option><option value="card">{t('card')}</option><option value="cash">{t('cash')}</option></select></div>
-        <div><label class="label" for="tk-n">{t('ticket_no')}</label><input class="input" id="tk-n" name="ticketNo" /></div>
-        <div><label class="label" for="tk-t">{t('time')}</label><input class="input" id="tk-t" name="time" type="time" /></div>
+      <!-- 2. service: one tap, price pre-filled -->
+      <div class="grid grid-cols-2 gap-1.5">
+        {#each (showAllServices ? data.services : data.services.slice(0, 8)) as s}
+          <button type="button" class="flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm ring-1 transition {serviceName === svcName(s) ? 'bg-brand-50 ring-brand-600' : 'bg-white ring-stone-200 hover:bg-stone-50'}" onclick={() => pickService(s)}>
+            <span class="truncate">{svcName(s)}</span><span class="ml-1 shrink-0 tabular-nums text-stone-500">{dollars(s.price)}</span>
+          </button>
+        {/each}
+        {#if data.services.length > 8 && !showAllServices}
+          <button type="button" class="rounded-lg px-2.5 py-2 text-sm text-stone-600 ring-1 ring-stone-200" onclick={() => (showAllServices = true)}>{t('more_services')}</button>
+        {/if}
       </div>
-      <button class="btn-primary w-full" type="submit">+ {t('add_ticket')}</button>
+      <div class="grid grid-cols-[1fr_auto] gap-2">
+        <input class="input py-2" name="service_free" placeholder={t('service')} bind:value={serviceName} autocomplete="off" />
+        <div class="relative"><span class="absolute left-2 top-2.5 text-stone-500">$</span><input class="input w-24 py-2 pl-5" id="tk-p" name="price" inputmode="decimal" required bind:value={price} placeholder="0" /></div>
+      </div>
+      <!-- 3. tip: one tap -->
+      <div>
+        <div class="mb-1 flex items-center justify-between text-xs text-stone-500"><span>{t('tip_card')}</span><span>{t('tip_cash')}</span></div>
+        <div class="flex items-center gap-1">
+          {#each quickTips.slice(1) as v}<button type="button" class="h-9 w-10 rounded-md text-sm font-semibold ring-1 {tipCard === String(v) ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white ring-stone-300'}" onclick={() => setTip('card', v)}>{v}</button>{/each}
+          <input class="input h-9 w-16 py-0 text-sm" name="tipCard" inputmode="decimal" bind:value={tipCard} placeholder="$" />
+          <span class="mx-1 text-stone-300">|</span>
+          {#each quickTips.slice(1) as v}<button type="button" class="h-9 w-10 rounded-md text-sm font-semibold ring-1 {tipCash === String(v) ? 'bg-emerald-700 text-white ring-emerald-700' : 'bg-white ring-stone-300'}" onclick={() => setTip('cash', v)}>{v}</button>{/each}
+          <input class="input h-9 w-16 py-0 text-sm" name="tipCash" inputmode="decimal" bind:value={tipCash} placeholder="$" />
+        </div>
+      </div>
+      <details class="text-sm">
+        <summary class="cursor-pointer text-stone-500">{t('payment')} · {t('ticket_no')} · {t('time')}</summary>
+        <div class="mt-2 grid grid-cols-3 gap-2">
+          <div class="inline-flex overflow-hidden rounded-lg ring-1 ring-stone-300">
+            <button type="button" class="flex-1 px-2 py-2 {payMethod === 'card' ? 'bg-brand-700 text-white' : 'bg-white'}" onclick={() => (payMethod = payMethod === 'card' ? '' : 'card')}>{t('card')}</button>
+            <button type="button" class="flex-1 px-2 py-2 {payMethod === 'cash' ? 'bg-emerald-700 text-white' : 'bg-white'}" onclick={() => (payMethod = payMethod === 'cash' ? '' : 'cash')}>{t('cash')}</button>
+          </div>
+          <input class="input py-2" name="ticketNo" placeholder={t('ticket_no')} />
+          <input class="input py-2" name="time" type="time" />
+        </div>
+      </details>
+      <button class="btn-primary w-full" type="submit" disabled={!lastWorker || !serviceName || !price}>+ {t('add_ticket')}</button>
     </form>
   </aside>
 </div>

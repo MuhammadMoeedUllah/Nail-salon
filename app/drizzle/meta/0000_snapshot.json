@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "abfd954b-f6ba-4924-91de-568a82c16090",
+  "id": "2ee7015d-7d55-4c3d-b91c-a92ee441b435",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "breaks": {
@@ -975,6 +975,14 @@
         },
         "photo_on_punch": {
           "name": "photo_on_punch",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "kiosk_auto_clock_in": {
+          "name": "kiosk_auto_clock_in",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

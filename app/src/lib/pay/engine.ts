@@ -180,7 +180,9 @@ export function computeWeek(input: WorkerWeekInput, rules: RuleSet): WeekResult 
       break;
     case 'guarantee_or_commission': {
       // Worker gets the higher of the weekly guarantee or commission ("bao lương" with "ăn chia").
-      if (commissionCents < input.guaranteeCents) {
+      // A week with no work at all earns no guarantee.
+      const worked = daysWorked > 0 || (input.ticketCount ?? 0) > 0;
+      if (worked && commissionCents < input.guaranteeCents) {
         baseCents = input.guaranteeCents - commissionCents;
         flags.push('GUARANTEE_APPLIED');
       }

@@ -34,6 +34,7 @@
       <div><label class="label" for="payFrequency">{t('pay_period')}</label><select class="input" id="payFrequency" name="payFrequency" value={data.salon.payFrequency} disabled={!data.isOwner}><option value="weekly">{t('per_week').replace('/', '')}</option><option value="biweekly">2 × {t('per_week').replace('/', '')}</option></select></div>
     </div>
     <label class="flex items-center gap-2"><input type="checkbox" name="photoOnPunch" checked={data.salon.photoOnPunch} disabled={!data.isOwner} /> {t('settings_photo')}</label>
+    <label class="flex items-center gap-2"><input type="checkbox" name="kioskAutoClockIn" checked={data.salon.kioskAutoClockIn} disabled={!data.isOwner} /> {t('settings_auto_in')} <span class="text-xs text-stone-500">· {t('kiosk_auto_in_hint')}</span></label>
     {#if data.isOwner}<button class="btn-primary">{t('save')}</button>{/if}
   </form>
 

@@ -134,6 +134,7 @@ CREATE TABLE `salons` (
 	`default_locale` text DEFAULT 'en' NOT NULL,
 	`tip_credit_enabled` integer DEFAULT false NOT NULL,
 	`photo_on_punch` integer DEFAULT true NOT NULL,
+	`kiosk_auto_clock_in` integer DEFAULT true NOT NULL,
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL
 );
 --> statement-breakpoint

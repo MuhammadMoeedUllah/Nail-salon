@@ -99,6 +99,13 @@ describe('computeWeek: federal worked examples', () => {
     expect(high.straightTimeCents).toBe(120000);
   });
 
+  it('guarantee does not apply to a week with no hours and no tickets', () => {
+    const r = computeWeek(base({ payBasis: 'guarantee_or_commission', guaranteeCents: 90000, commissionPct: 60, days: [] }), NYC);
+    expect(r.baseCents).toBe(0);
+    expect(r.grossWagesCents).toBe(0);
+    expect(r.flags).not.toContain('GUARANTEE_APPLIED');
+  });
+
   it('tips are reported but never counted as wages', () => {
     const r = computeWeek(
       base({ payBasis: 'commission', commissionPct: 50, salesCents: 100000, days: days([8, 8, 8, 8, 8]), tipsCardCents: 20000, tipsCashCents: 15000 }),

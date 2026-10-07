@@ -171,3 +171,13 @@ export async function punchesInRange(salonId: string, from: string, to: string) 
 export async function activeWorkers(salonId: string) {
   return db.select().from(workers).where(and(eq(workers.salonId, salonId), eq(workers.active, true))).orderBy(workers.sortOrder, workers.displayName);
 }
+
+/** Void a clock-in made in the last two minutes by the same worker (the kiosk "Undo" button). */
+export async function undoPunch(salon: Salon, workerId: string, punchId: string, actor: Actor): Promise<boolean> {
+  const p = await db.select().from(punches).where(and(eq(punches.id, punchId), eq(punches.workerId, workerId), eq(punches.salonId, salon.id))).get();
+  if (!p || p.tsOut || p.voidedAt) return false;
+  if (minutesBetween(p.tsIn, nowIso()) > 2) return false;
+  await db.update(punches).set({ voidedAt: nowIso() }).where(eq(punches.id, p.id));
+  await recordEdit({ salonId: salon.id, entity: 'punch', entityId: p.id, action: 'void', oldValue: { tsIn: p.tsIn }, reason: 'undo on tablet', actor });
+  return true;
+}

@@ -14,13 +14,14 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await expect(page.locator('h1')).toContainText(/Today|Hôm nay/);
   await page.screenshot({ path: `${SHOTS}/01-today.png`, fullPage: true });
 
-  // add a ticket by hand
-  await page.selectOption('#tk-w', { index: 1 });
-  await page.fill('#tk-s', 'Gel manicure');
-  await page.fill('#tk-p', '45');
-  await page.fill('#tk-tc', '8');
+  // add a ticket in three taps: technician chip, service tile, tip button, then add
+  await page.locator('aside button', { hasText: 'Linh' }).click();
+  await page.locator('aside button', { hasText: 'Gel manicure' }).click();
+  await expect(page.locator('#tk-p')).toHaveValue('45.00');
+  await page.locator('aside button', { hasText: /^5$/ }).first().click();
   await page.click('aside button[type=submit]');
   await expect(page.locator('td', { hasText: 'Gel manicure' }).first()).toBeVisible();
+  await expect(page.locator('a', { hasText: /Open pay run|Mở bảng tính lương/ })).toBeVisible();
 
   // pay runs list
   await page.goto(`${BASE}/app/pay`);
@@ -77,10 +78,9 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await ap.screenshot({ path: `${SHOTS}/07-shared-statement.png`, fullPage: true });
   await anon.close();
 
-  // mark paid
+  // mark paid in one click
   await page.goto(`${BASE}${href}`);
-  await page.locator('button', { hasText: /Mark as paid|Đánh dấu đã trả/ }).click();
-  await page.locator('form[action="?/pay"] button.btn-primary').click();
+  await page.locator('button', { hasText: /Mark all paid by check today|Đánh dấu đã trả hết/ }).click();
   await expect(page.locator('h1 .badge')).toContainText(/Paid|Đã trả/);
 
   // audit page + exports
@@ -126,13 +126,18 @@ test('tablet pairs and a technician clocks in and out with a PIN', async ({ brow
   // wrong pin
   for (const d of ['9', '9', '9', '9']) await page.locator('button', { hasText: new RegExp(`^${d}$`) }).click();
   await expect(page.locator('text=/Wrong PIN|Sai PIN/')).toBeVisible();
+  // correct PIN clocks in immediately (auto clock-in) and offers Undo
   for (const d of ['1', '1', '1', '1']) await page.locator('button', { hasText: new RegExp(`^${d}$`) }).click();
-  const clockIn = page.locator('button', { hasText: /Clock in|Vào ca/ });
-  await expect(clockIn).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/13-kiosk-actions.png` });
-  await clockIn.click();
   await expect(page.locator('text=/Clocked in at|Đã vào ca lúc/')).toBeVisible();
+  await expect(page.locator('button', { hasText: /Undo|Hoàn tác/ })).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/14-kiosk-done.png` });
+  // undo, then clock in again
+  await page.locator('button', { hasText: /Undo|Hoàn tác/ }).click();
+  await expect(page.locator('text=/Undone|Đã hủy/')).toBeVisible();
+  await page.locator('button', { hasText: /Close|Đóng/ }).click();
+  await page.locator('main button', { hasText: 'Linh' }).click();
+  for (const d of ['1', '1', '1', '1']) await page.locator('button', { hasText: new RegExp(`^${d}$`) }).click();
+  await expect(page.locator('text=/Clocked in at|Đã vào ca lúc/')).toBeVisible();
   // the owner session must be gone on the tablet
   const r = await page.request.get(`${BASE}/app/today`, { maxRedirects: 0 });
   expect(r.status()).toBe(303);
@@ -140,6 +145,7 @@ test('tablet pairs and a technician clocks in and out with a PIN', async ({ brow
   await page.locator('button', { hasText: /Close|Đóng/ }).click();
   await page.locator('main button', { hasText: 'Linh' }).click();
   for (const d of ['1', '1', '1', '1']) await page.locator('button', { hasText: new RegExp(`^${d}$`) }).click();
+  await page.screenshot({ path: `${SHOTS}/13-kiosk-actions.png` });
   await page.locator('button', { hasText: /Clock out|Ra ca/ }).click();
   await expect(page.locator('text=/Clocked out at|Đã ra ca lúc/')).toBeVisible();
   await ctx.close();
