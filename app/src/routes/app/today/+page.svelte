@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import type { SubmitFunction } from '@sveltejs/kit';
   import { tick } from 'svelte';
   import { makeT } from '$lib/i18n';
   import { fmtCents, fmtDateLong, fmtMinutes } from '$lib/time';
@@ -65,18 +66,22 @@
     else { tipCash = v ? String(v) : ''; if (v) tipCard = ''; }
     if (v && !payMethod) payMethod = kind;
   }
+  const onTicketSubmit: SubmitFunction = () => {
+    lastTicket = { workerId: lastWorker, serviceName, price, tipCard, tipCash, payMethod };
+    return async ({ result, update }) => {
+      await update({ reset: false });
+      if (result.type === 'success') {
+        price = '';
+        serviceName = '';
+        tipCard = '';
+        tipCash = '';
+        payMethod = '';
+        toast = t('added');
+        setTimeout(() => (toast = ''), 1800);
+      }
+    };
+  };
   $effect(() => {
-    if (form?.ok && form.form === 'ticket') {
-      lastTicket = { workerId: lastWorker, serviceName, price, tipCard, tipCash, payMethod };
-      price = '';
-      serviceName = '';
-      tipCard = '';
-      tipCash = '';
-      payMethod = '';
-      lastWorker = form.lastWorkerId ?? '';
-      toast = t('added');
-      setTimeout(() => (toast = ''), 1800);
-    }
     if (form?.ok && (form.form === 'punch' || form.form === 'addPunch')) {
       fixing = null;
       addingPunch = false;
@@ -231,7 +236,7 @@
   </section>
 
   <aside class="lg:sticky lg:top-20 lg:self-start">
-    <form method="post" action="?/addTicket" use:enhance class="card space-y-3" bind:this={formEl}>
+    <form method="post" action="?/addTicket" use:enhance={onTicketSubmit} class="card space-y-3" bind:this={formEl}>
       <div class="flex items-center justify-between">
         <h2 class="font-bold">{t('add_ticket')}</h2>
         <div class="flex items-center gap-2">
