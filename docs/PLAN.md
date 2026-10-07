@@ -87,7 +87,7 @@ Pure function, integer cents and minutes, no I/O, property-tested.
 3. Straight time = base + commission. Regular rate = straight time ÷ hours (29 CFR 778.109, 778.112, 778.117, 778.118).
 4. If the regular rate is under the applicable minimum wage, add a top-up so that straight time = minimum wage × hours, and the regular rate becomes the minimum wage (29 CFR 778.107).
 5. Overtime minutes = hours over 40 per workweek (or daily thresholds where a state has them). Premium = regular rate × 0.5 × overtime hours.
-6. New York spread of hours: one extra hour at minimum wage for each day whose span exceeds ten hours, shown as its own line and flagged (12 NYCRR 142-2.4).
+6. New York spread of hours: for days whose span exceeds ten hours, the shortfall between weekly straight-time pay and minimum wage × (hours + one per long day), shown as its own line and flagged. Workers paid well above minimum are owed nothing extra, which matches the Miscellaneous Industries wage order as applied by the state (12 NYCRR 142-2.4).
 7. Tips are reported, never counted as wages (29 CFR 531.52). Card tips are owed to the technician; cash tips are already in hand.
 8. Section 7(i) is never applied. When a week could qualify it is flagged for a professional to check.
 
@@ -132,11 +132,11 @@ See `app/src/lib/server/db/schema.ts`. Tables: salons, users, sessions, devices,
 | 3 | Kiosk: PIN, camera, offline queue, pairing | done |
 | 4 | Today: punches, tickets, fixes with reasons | done |
 | 5 | Technicians CRUD | done |
-| 6 | Pay runs, approve, mark paid, statement, share link, exports | in progress |
-| 7 | CSV import (Square, Fresha, Vagaro, GlossGenius, generic) | in progress |
-| 8 | Audit binder PDF and CSV zip, edit history | in progress |
-| 9 | Settings, devices, users | in progress |
-| 10 | Dockerfile, Fly config, README, smoke tests | pending |
+| 6 | Pay runs, approve, mark paid, statement, share link, exports | done |
+| 7 | CSV import (Square, Fresha, Vagaro, GlossGenius, generic) | done |
+| 8 | Audit binder PDF and CSV zip, edit history | done |
+| 9 | Settings, devices, users | done |
+| 10 | Dockerfile, Fly config, README, smoke tests | done |
 
 ## 9. Out of scope for v1
 
