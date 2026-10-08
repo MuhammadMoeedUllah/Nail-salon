@@ -58,19 +58,39 @@ src/routes/s/[token]           statement shared by signed link, with PDF
 
 The app is one long-running Node server that keeps its SQLite database and clock-in photos on disk. It needs a host that runs a container with a persistent volume.
 
-The `Dockerfile` builds one image with Node 22, the built app, the migrations and Litestream. `fly.toml` runs it on one Fly.io machine with a volume at `/data`. Run these from this `app/` folder:
+The `Dockerfile` builds one image with Node 22, the built app, the migrations and Litestream. `fly.toml` runs it on one Fly.io machine with a volume at `/data`, listening on port 8080. It names the Dockerfile under `[build]` on purpose: without that, Fly scans the source, detects SvelteKit and runs its own Node Dockerfile generator, which fails on pnpm and would rewrite the start command.
+
+### Fly.io web launcher
+
+In the Fly dashboard, launch from GitHub with these values:
+
+| Field | Value |
+|---|---|
+| Working directory | `app` |
+| Config path | leave empty |
+| Internal port | `8080`, the default |
+| Memory | 512MB |
+| Region | `ewr`, or `iad` if `ewr` is not listed |
+| Database | none; do not add Managed Postgres |
+
+After the first deploy: confirm one machine and one volume named `data`, then add the secret `APP_SECRET` with a random value of at least 32 characters on the app's Secrets page.
+
+### Fly.io command line
+
+Run these from this `app/` folder:
 
 ```bash
 fly launch --no-deploy --copy-config --name <your-app-name>
-fly volumes create data --size 10 --region ewr
 fly secrets set APP_SECRET=$(openssl rand -base64 32)
 # optional backups: fly secrets set LITESTREAM_REPLICA_URL=s3://bucket/salon LITESTREAM_ACCESS_KEY_ID=... LITESTREAM_SECRET_ACCESS_KEY=...
 fly deploy
 ```
 
+The first deploy creates the `data` volume and exactly one machine. Never scale above one machine: a second one would get its own separate database. The volume starts at 1 GB and grows by itself up to 10 GB.
+
 `ORIGIN` is left unset on Fly on purpose: behind Fly's HTTPS proxy the server uses `https://` plus the request's host, which matches any app name or custom domain. Set `ORIGIN` only when running over plain HTTP, as in local testing.
 
-Any host that runs a container with a persistent directory works the same way (Railway, Render, Hetzner with Coolify or Kamal).
+Any host that runs a container with a persistent directory works the same way (Railway, Render, Hetzner with Coolify or Kamal). Set `PORT` if the host expects a port other than 8080.
 
 ### Vercel is not supported as built
 
