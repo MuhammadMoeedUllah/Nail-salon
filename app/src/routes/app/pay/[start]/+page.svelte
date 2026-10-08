@@ -1,161 +1,226 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { page } from '$app/state';
+  import { tick } from 'svelte';
   import { makeT } from '$lib/i18n';
-  import { fmtCents, fmtDate, fmtMinutes, fmtRate, fmtHours } from '$lib/time';
   import { dollars } from '$lib/money';
+  import { fmtCents, fmtDate, fmtHours, fmtMinutes, fmtRate, fmtWeekday } from '$lib/time';
+  import { busy } from '$lib/ui/forms';
+  import PageHeader from '$lib/ui/PageHeader.svelte';
+  import Menu from '$lib/ui/Menu.svelte';
+  import Banner from '$lib/ui/Banner.svelte';
+  import KeyNumber from '$lib/ui/KeyNumber.svelte';
+  import StatusStepper from '$lib/ui/StatusStepper.svelte';
+  import SegmentedControl from '$lib/ui/SegmentedControl.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
+  import ConfirmButton from '$lib/ui/ConfirmButton.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Avatar from '$lib/ui/Avatar.svelte';
+  import WeekTechCard from '$lib/pay-ui/WeekTechCard.svelte';
+  import FlagPills from '$lib/pay-ui/FlagPills.svelte';
+  import Reasons from '$lib/pay-ui/Reasons.svelte';
+  import PaySheet from '$lib/pay-ui/PaySheet.svelte';
+  import ReopenSheet from '$lib/pay-ui/ReopenSheet.svelte';
+  import { IconDownload, IconHistory, IconApprove, IconPaid, IconMessage, IconToday, IconFile, IconNext, IconOwed } from '$lib/ui/icons';
+
   let { data, form } = $props();
   const t = $derived(makeT(data.locale));
-  let paying = $state(false);
-  let reopening = $state(false);
-  let detail = $state(false);
-  const basisShort = (l: any) => {
-    const w = l.worker;
-    switch (w.payBasis) {
-      case 'hourly': return `${fmtCents(w.hourlyRateCents)}/h${w.commissionPct ? ` + ${w.commissionPct}%` : ''}`;
-      case 'day_rate': return `${fmtCents(w.dayRateCents)}/d`;
-      case 'commission': return `${w.commissionPct}%`;
-      case 'day_rate_plus_commission': return `${fmtCents(w.dayRateCents)}/d + ${w.commissionPct}%`;
-      case 'guarantee_or_commission': return `${fmtCents(w.guaranteeCents)}/wk ∨ ${w.commissionPct}%`;
+  const L = $derived(data.locale);
+  const focus = $derived(page.url.searchParams.get('focus'));
+  const unsent = $derived(data.lines.filter((l) => !l.sentAt).length);
+  const step = $derived(data.status === 'draft' ? 0 : data.status === 'approved' ? 1 : unsent > 0 ? 2 : 3);
+  const steps = $derived([t('py_step_draft'), t('py_step_approved'), t('py_step_paid'), t('py_step_sent')]);
+  // what blocks approval and what is worth a look, with links to the day to fix it
+  const problems = $derived.by(() => {
+    const block: { text: string; href: string }[] = [];
+    const warn: { text: string; href: string }[] = [];
+    for (const l of data.lines) {
+      for (const d of l.days) {
+        if (d.open) block.push({ text: t('py_open_on', { name: l.worker.displayName, day: fmtWeekday(d.date, L) }), href: `/app/today?date=${d.date}` });
+        else if (d.minutes === 0 && l.tickets.some((x) => x.workDate === d.date)) warn.push({ text: t('py_tickets_no_hours_on', { name: l.worker.displayName, day: fmtWeekday(d.date, L) }), href: `/app/today?date=${d.date}` });
+      }
+      for (const date of new Set(l.tickets.map((x) => x.workDate)))
+        if (!l.days.some((d) => d.date === date)) warn.push({ text: t('py_tickets_no_hours_on', { name: l.worker.displayName, day: fmtWeekday(date, L) }), href: `/app/today?date=${date}` });
     }
-    return '';
-  };
+    return { block, warn };
+  });
+  const blocked = $derived(data.status === 'draft' && problems.block.length > 0);
+  const empty = $derived(data.totals.minutes === 0 && data.lines.every((l) => l.result.salesCents === 0));
+  let view = $state('summary');
+  let payOpen = $state(false);
+  let reopenOpen = $state(false);
+  const exportItems = $derived([
+    { label: 'Gusto CSV', icon: IconDownload, href: `/app/pay/${data.start}/export?format=gusto`, reload: true },
+    { label: 'ADP RUN CSV', icon: IconDownload, href: `/app/pay/${data.start}/export?format=adp`, reload: true },
+    { label: t('payroll_export'), icon: IconDownload, href: `/app/pay/${data.start}/export?format=generic`, reload: true }
+  ]);
+  const menuItems = $derived(data.status === 'draft' ? [] : [...exportItems, { label: t('py_reopen_title'), icon: IconHistory, onSelect: () => (reopenOpen = true), danger: true }]);
+
+  $effect(() => {
+    const f = focus;
+    if (f) tick().then(() => document.getElementById(`line-${f}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  });
 </script>
 
-<svelte:head><title>{t('pay_week')} {fmtDate(data.start, data.locale)}</title></svelte:head>
+<svelte:head><title>{t('py_week_title', { start: fmtDate(data.start, L), end: fmtDate(data.end, L) })}</title></svelte:head>
 
-<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-  <div>
-    <a class="text-sm text-stone-500 underline" href="/app/pay">← {t('pay_title')}</a>
-    <h1 class="text-2xl font-bold">{t('pay_week')}: {fmtDate(data.start, data.locale)} – {fmtDate(data.end, data.locale)}
-      <span class="badge ml-2 align-middle {data.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : data.status === 'approved' ? 'bg-blue-100 text-blue-800' : 'bg-stone-100 text-stone-700'}">{t(`pay_status_${data.status}` as any)}</span>
-    </h1>
+<PageHeader back={{ href: '/app/pay', label: t('pay_title') }} title={t('py_week_title', { start: fmtDate(data.start, L), end: fmtDate(data.end, L) })}>
+  {#snippet actions()}
+    {#if menuItems.length}<Menu label={t('options')} items={menuItems} />{/if}
+  {/snippet}
+</PageHeader>
+
+<div class="space-y-4">
+  <div class="card px-4 py-3" data-testid="run-status"><StatusStepper {steps} current={step} label={t('py_steps_label')} /></div>
+
+  {#if form?.error}
+    <Banner kind="error">{form.error === 'open_punch' ? t('py_blocked') : form.error === 'reason_required' ? t('reason_hint') : t('something_wrong')}</Banner>
+  {/if}
+  {#if data.status === 'draft' && problems.block.length}
+    <Banner kind="error" title={t('py_fix_first')}>
+      <p class="mb-1">{t('py_blocked')}</p>
+      <ul class="space-y-1">{#each problems.block as p}<li><a class="font-bold underline" href={p.href}>{p.text}</a></li>{/each}</ul>
+    </Banner>
+  {/if}
+  {#if data.status === 'draft' && problems.warn.length}
+    <Banner kind="warn" title={t('py_check_these')}>
+      <ul class="space-y-1">{#each problems.warn as p}<li><a class="font-bold underline" href={p.href}>{p.text}</a></li>{/each}</ul>
+    </Banner>
+  {/if}
+  {#if data.isCurrentWeek && data.status === 'draft'}
+    <Banner kind="info" icon={IconToday}>{t('home_week_in_progress', { day: fmtWeekday(data.end, L, 'short') })}</Banner>
+  {/if}
+
+  <section class="card grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:items-center" aria-label={t('st_summary')}>
+    <KeyNumber value={fmtCents(data.totals.owed)} label={data.totals.owed > 0 ? t('owed_by_law') : t('home_nothing_owed')} tone={data.totals.owed > 0 ? 'owed' : 'ok'} />
+    <dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+      <div><dt class="text-sm text-ink-muted">{t('total_pay')}</dt><dd class="text-lg font-bold">{fmtCents(data.totals.total)}</dd></div>
+      <div><dt class="text-sm text-ink-muted">{t('gross_wages')}</dt><dd class="text-lg font-bold">{fmtCents(data.totals.gross)}</dd></div>
+      <div><dt class="text-sm text-ink-muted">{t('hours')}</dt><dd class="text-lg font-bold">{fmtMinutes(data.totals.minutes)}</dd></div>
+      <div><dt class="text-sm text-ink-muted">{t('tip_card')}</dt><dd class="text-lg font-bold">{fmtCents(data.totals.tipsCard)}</dd></div>
+      <div><dt class="text-sm text-ink-muted">{t('tip_cash')}</dt><dd class="text-lg font-bold">{fmtCents(data.totals.tipsCash)}</dd></div>
+    </dl>
+  </section>
+
+  <!-- phones and portrait tablets: one card per technician -->
+  <div class="space-y-3 lg:hidden">
+    {#each data.lines as l (l.worker.id)}
+      <WeekTechCard line={l} start={data.start} locale={L} focused={focus === l.worker.id} />
+    {/each}
   </div>
-  <div class="flex flex-wrap gap-2">
-    {#if data.status !== 'draft'}
-      <a class="btn-secondary" href="/app/pay/{data.start}/export?format=gusto">⇩ Gusto CSV</a>
-      <a class="btn-secondary" href="/app/pay/{data.start}/export?format=adp">⇩ ADP RUN CSV</a>
-      <a class="btn-secondary" href="/app/pay/{data.start}/export?format=generic">⇩ {t('payroll_export')}</a>
+
+  <!-- wide screens: the table, summary first -->
+  <section class="hidden space-y-3 lg:block">
+    <SegmentedControl label={t('details')} bind:value={view} class="max-w-xl" options={[{ value: 'summary', label: t('py_view_summary') }, { value: 'full', label: t('py_view_full') }, { value: 'rules', label: t('rules_used') }]} />
+    {#if view === 'rules'}
+      <DataTable caption={t('rules_used')}>
+        <thead><tr><th>{t('state')}</th><th>{t('rules_used')}</th><th class="num">{t('effective')}</th><th>{t('source')}</th><th class="num">{t('checked')}</th></tr></thead>
+        <tbody>
+          {#each data.rules as e}
+            <tr>
+              <td>{e.jurisdiction}{e.region ? ' · ' + e.region : ''}</td>
+              <td><span class="font-bold">{e.key === 'min_wage' ? t('min_wage') : e.key === 'ot_weekly_threshold_hours' ? t('ot_after') : e.key}</span> · {e.key === 'min_wage' ? fmtCents(Number(e.value)) + t('per_hour') : e.value + (e.unit === 'hours' ? ' ' + t('hours_unit') : '')}</td>
+              <td class="num">{e.effective_from}</td>
+              <td><a class="font-bold text-brand-strong underline" href={e.source_url} target="_blank" rel="noopener">{e.source_title}</a></td>
+              <td class="num">{e.checked_on}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </DataTable>
+    {:else}
+      <DataTable caption={t('pay_week')} sticky pin>
+        <thead>
+          <tr>
+            <th>{t('technician')}</th>
+            <th class="num">{t('days')}</th>
+            <th class="num">{t('hours')}</th>
+            <th class="num">{t('overtime_hours')}</th>
+            <th class="num">{t('sales')}</th>
+            {#if view === 'full'}<th class="num">{t('commission')}</th><th class="num">{t('day_rate')}/{t('guarantee')}</th><th class="num">{t('regular_rate')}</th><th class="num">{t('min_wage_topup')}</th><th class="num">{t('overtime_premium')}</th>{/if}
+            <th class="num">{t('gross_wages')}</th>
+            <th class="num">{t('owed_by_law')}</th>
+            <th class="num">{t('tips')}</th>
+            <th class="num">{t('total_pay')}</th>
+            <th><span class="sr-only">{t('statement')}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each data.lines as l (l.worker.id)}
+            {@const r = l.result}
+            <tr id="line-{l.worker.id}" class={focus === l.worker.id ? 'bg-brand-soft' : ''}>
+              <td class="min-w-56">
+                <span class="flex items-center gap-2"><Avatar name={l.worker.displayName} id={l.worker.id} size={32} /><span class="font-bold">{l.worker.displayName}</span></span>
+                {#if r.flags.length}
+                  <details class="mt-1">
+                    <summary class="inline-flex min-h-11 cursor-pointer items-center text-sm font-bold text-ink-muted">{t('py_notes', { n: r.flags.length })} · {t('py_reasons')}</summary>
+                    <div class="mt-2 max-w-md space-y-3"><FlagPills flags={r.flags} locale={L} /><Reasons breakdown={r.breakdown} locale={L} /></div>
+                  </details>
+                {/if}
+              </td>
+              <td class="num">{r.daysWorked}</td>
+              <td class="num">{fmtHours(r.minutesWorked)}</td>
+              <td class="num {r.overtimeMinutes ? 'font-bold text-owed' : 'text-ink-muted'}">{r.overtimeMinutes ? fmtHours(r.overtimeMinutes) : '—'}</td>
+              <td class="num">{fmtCents(r.salesCents)}</td>
+              {#if view === 'full'}
+                <td class="num">{fmtCents(r.commissionCents)}</td>
+                <td class="num">{r.baseCents ? fmtCents(r.baseCents) : '—'}</td>
+                <td class="num">{r.minutesWorked ? fmtRate(r.regularRate) : '—'}</td>
+                <td class="num {r.minWageTopupCents ? 'font-bold text-owed' : 'text-ink-muted'}">{r.minWageTopupCents ? fmtCents(r.minWageTopupCents) : '—'}</td>
+                <td class="num {r.overtimePremiumCents ? 'font-bold text-owed' : 'text-ink-muted'}">{r.overtimePremiumCents ? fmtCents(r.overtimePremiumCents) : '—'}</td>
+              {/if}
+              <td class="num">{fmtCents(r.grossWagesCents)}</td>
+              <td class="num">{#if l.owedCents}<span class="inline-flex items-center gap-1 font-bold text-owed"><IconOwed size={16} />{fmtCents(l.owedCents)}</span>{:else}<span class="text-ink-muted">—</span>{/if}</td>
+              <td class="num">{fmtCents(r.tipsCardCents + r.tipsCashCents)}</td>
+              <td class="num font-bold">{fmtCents(r.totalCents)}</td>
+              <td><a href="/app/pay/{data.start}/{l.worker.id}" class="btn-secondary min-h-11 px-3 text-base"><IconFile size={18} />{t('statement')}</a></td>
+            </tr>
+          {/each}
+        </tbody>
+      </DataTable>
     {/if}
+  </section>
+
+  <details class="card p-4 lg:hidden">
+    <summary class="flex min-h-11 cursor-pointer items-center text-base font-bold">{t('rules_used')}</summary>
+    <ul class="mt-2 space-y-2 text-base">
+      {#each data.rules as e}
+        <li><span class="font-bold">{e.key === 'min_wage' ? t('min_wage') : e.key === 'ot_weekly_threshold_hours' ? t('ot_after') : e.key}</span> · {e.key === 'min_wage' ? fmtCents(Number(e.value)) + t('per_hour') : e.value + (e.unit === 'hours' ? ' ' + t('hours_unit') : '')} · <a class="text-brand-strong underline" href={e.source_url} target="_blank" rel="noopener">{e.source_title}</a></li>
+      {/each}
+    </ul>
+  </details>
+
+  <div class="h-24 lg:h-4" aria-hidden="true"></div>
+</div>
+
+<!-- one action at a time, always within thumb reach (R3, R12) -->
+<div class="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur lg:sticky lg:bottom-0 lg:-mx-8 lg:mt-4 lg:px-8">
+  <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-2">
     {#if data.status === 'draft'}
-      <form method="post" action="?/approve" use:enhance><button class="btn-primary" disabled={data.isCurrentWeek && data.totals.minutes === 0}>{t('pay_approve')}</button></form>
+      <form method="post" action="?/approve" use:enhance={busy()} class="w-full sm:w-auto">
+        {#if blocked || empty}
+          <Button variant="primary" size="lg" block disabled icon={IconApprove}>{t('py_approve', { amount: fmtCents(data.totals.total) })}</Button>
+        {:else}
+          <ConfirmButton size="lg" block icon={IconApprove} label={t('py_approve', { amount: fmtCents(data.totals.total) })} confirmLabel={t('py_approve_confirm', { amount: fmtCents(data.totals.total) })} cancelLabel={t('cancel')} hint={t('py_approve_hint')} />
+        {/if}
+      </form>
     {:else if data.status === 'approved'}
-      <form method="post" action="?/pay" use:enhance>
+      <Button size="lg" onclick={() => (payOpen = true)}>{t('py_adjust')}</Button>
+      <form method="post" action="?/pay" use:enhance={busy()} class="w-full sm:w-auto">
         <input type="hidden" name="paidOn" value={data.today} />
         {#each data.lines as l}<input type="hidden" name="check_{l.worker.id}" value={dollars(l.result.totalCents)} />{/each}
-        <button class="btn-primary">✓ {t('mark_paid_check_today')}</button>
+        <ConfirmButton size="lg" block icon={IconPaid} label={t('py_pay_check', { amount: fmtCents(data.totals.total) })} confirmLabel={t('py_pay_confirm', { amount: fmtCents(data.totals.total) })} cancelLabel={t('cancel')} />
       </form>
-      <button class="btn-secondary" onclick={() => (paying = !paying)}>{t('adjust')}</button>
-      <button class="btn-secondary" onclick={() => (reopening = !reopening)}>{t('pay_reopen')}</button>
     {:else}
-      <button class="btn-secondary" onclick={() => (reopening = !reopening)}>{t('pay_reopen')}</button>
+      {#if unsent > 0}
+        <Button href="/app/pay/{data.start}/send" variant="primary" size="lg" icon={IconMessage} iconRight={IconNext}>{t('py_send_count', { n: unsent })}</Button>
+      {:else}
+        <Button href="/app/pay/{data.start}/send" size="lg" icon={IconMessage}>{t('py_all_sent')}</Button>
+      {/if}
     {/if}
   </div>
 </div>
 
-{#if data.status === 'draft'}<p class="mb-3 text-sm text-stone-600">{t('pay_approve_hint')}</p>{/if}
-{#if data.isCurrentWeek && data.status === 'draft'}<p class="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{t('this_week')} · {t('today')}: {fmtDate(data.today, data.locale)}</p>{/if}
-{#if form?.error}<p class="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{form.error === 'reason_required' ? t('reason_hint') : t('invalid')}</p>{/if}
-
-{#if reopening}
-  <form method="post" action="?/reopen" use:enhance class="card mb-4 flex flex-wrap items-end gap-3">
-    <div class="grow"><label class="label" for="ro">{t('reason')}</label><input class="input" id="ro" name="reason" required placeholder={t('reason_hint')} /></div>
-    <button class="btn-danger">{t('pay_reopen')}</button>
-    <button type="button" class="btn-ghost" onclick={() => (reopening = false)}>{t('cancel')}</button>
-  </form>
+{#if data.status === 'approved'}
+  <PaySheet bind:open={payOpen} lines={data.lines} lastMethods={data.lastMethods} today={data.today} locale={L} />
 {/if}
-
-<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-  <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('hours')}</div><div class="text-xl font-bold tabular-nums">{fmtMinutes(data.totals.minutes)}</div></div>
-  <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('gross_wages')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(data.totals.gross)}</div></div>
-  <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('tip_card')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(data.totals.tipsCard)}</div></div>
-  <div class="card py-3"><div class="text-xs uppercase text-stone-500">{t('tip_cash')}</div><div class="text-xl font-bold tabular-nums">{fmtCents(data.totals.tipsCash)}</div></div>
-  <div class="card py-3 {data.totals.owed > 0 ? 'ring-2 ring-red-300' : ''}"><div class="text-xs uppercase text-stone-500">{t('owed_by_law')}</div><div class="text-xl font-bold tabular-nums {data.totals.owed > 0 ? 'text-red-700' : 'text-emerald-700'}">{fmtCents(data.totals.owed)}</div></div>
-</div>
-
-<div class="mb-2 flex justify-end"><label class="flex items-center gap-2 text-sm text-stone-600"><input type="checkbox" bind:checked={detail} /> {t('details')}</label></div>
-<form method="post" action="?/pay" use:enhance>
-  <div class="card overflow-x-auto p-0">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>{t('technician')}</th><th class="hidden xl:table-cell">{t('pay_basis')}</th>
-          <th class="text-right">{t('days')}</th><th class="text-right">{t('hours')}</th><th class="text-right">{t('overtime_hours')}</th>
-          {#if detail}<th class="text-right">{t('sales')}</th><th class="text-right">{t('commission')}</th><th class="text-right">{t('day_rate')}/{t('guarantee')}</th><th class="text-right">{t('regular_rate')}</th>{/if}
-          <th class="text-right">{t('owed_by_law')}</th>
-          {#if detail}<th class="text-right">{t('min_wage_topup')}</th><th class="text-right">{t('overtime_premium')}</th>{/if}
-          <th class="text-right">{t('gross_wages')}</th>{#if detail}<th class="text-right">{t('tip_card')}</th><th class="text-right">{t('tip_cash')}</th>{/if}<th class="text-right">{t('total_pay')}</th>
-          {#if paying}<th>{t('cash')}</th><th>{t('paid_check')}</th><th>{t('paid_payroll')}</th>{/if}
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each data.lines as l (l.worker.id)}
-          {@const r = l.result}
-          <tr>
-            <td class="font-semibold">
-              <a class="text-brand-800 underline decoration-brand-200 underline-offset-2" href="/app/pay/{data.start}/{l.worker.id}">{l.worker.displayName}</a>
-              {#if r.flags.length}
-                <div class="mt-1 flex flex-wrap gap-1">
-                  {#each r.flags as f}<span class="badge {f === 'OT_OWED' || f === 'MIN_WAGE_TOPUP' ? 'bg-red-100 text-red-800' : f === 'OPEN_PUNCH' || f === 'TICKETS_WITHOUT_HOURS' || f === 'LONG_DAY' ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-700'}" title={t(`flag_${f}` as any)}>{t(`flag_${f}` as any)}</span>{/each}
-                </div>
-              {/if}
-            </td>
-            <td class="hidden text-xs text-stone-600 xl:table-cell">{basisShort(l)}</td>
-            <td class="text-right tabular-nums">{r.daysWorked}</td>
-            <td class="text-right tabular-nums">{fmtHours(r.minutesWorked)}</td>
-            <td class="text-right tabular-nums {r.overtimeMinutes ? 'cell-owed' : ''}">{r.overtimeMinutes ? fmtHours(r.overtimeMinutes) : '—'}</td>
-            {#if detail}
-              <td class="text-right tabular-nums">{fmtCents(r.salesCents)}</td>
-              <td class="text-right tabular-nums">{fmtCents(r.commissionCents)}</td>
-              <td class="text-right tabular-nums">{r.baseCents ? fmtCents(r.baseCents) : '—'}</td>
-              <td class="text-right tabular-nums text-xs">{r.minutesWorked ? fmtRate(r.regularRate) : '—'}</td>
-            {/if}
-            <td class="text-right tabular-nums {l.owedCents ? 'cell-owed' : ''}">{l.owedCents ? fmtCents(l.owedCents) : '—'}</td>
-            {#if detail}
-              <td class="text-right tabular-nums {r.minWageTopupCents ? 'cell-owed' : ''}">{r.minWageTopupCents ? fmtCents(r.minWageTopupCents) : '—'}</td>
-              <td class="text-right tabular-nums {r.overtimePremiumCents ? 'cell-owed' : ''}">{r.overtimePremiumCents ? fmtCents(r.overtimePremiumCents) : '—'}</td>
-            {/if}
-            <td class="text-right font-semibold tabular-nums">{fmtCents(r.grossWagesCents)}</td>
-            {#if detail}
-              <td class="text-right tabular-nums">{fmtCents(r.tipsCardCents)}</td>
-              <td class="text-right tabular-nums">{fmtCents(r.tipsCashCents)}</td>
-            {/if}
-            <td class="text-right font-bold tabular-nums">{fmtCents(r.totalCents)}</td>
-            {#if paying}
-              <td><input class="input w-24 py-1" name="cash_{l.worker.id}" inputmode="decimal" value={l.paid?.cash ? dollars(l.paid.cash) : ''} /></td>
-              <td><input class="input w-24 py-1" name="check_{l.worker.id}" inputmode="decimal" value={l.paid?.check ? dollars(l.paid.check) : dollars(r.totalCents)} /></td>
-              <td><input class="input w-24 py-1" name="payroll_{l.worker.id}" inputmode="decimal" value={l.paid?.payroll ? dollars(l.paid.payroll) : ''} /></td>
-            {/if}
-            <td class="whitespace-nowrap text-right">
-              <a class="text-brand-700 underline" href="/app/pay/{data.start}/{l.worker.id}">{t('statement')}</a>
-              {#if l.paid?.on}<div class="text-xs text-stone-500">{t('pay_paid_on')} {l.paid.on}</div>{/if}
-            </td>
-          </tr>
-        {:else}
-          <tr><td colspan="16" class="text-stone-500">{t('none_yet')}</td></tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
-  {#if paying}
-    <div class="card mt-3 flex flex-wrap items-end gap-3">
-      <div><label class="label" for="paidOn">{t('pay_paid_on')}</label><input class="input" id="paidOn" name="paidOn" type="date" value={data.paidOn ?? data.today} required /></div>
-      <button class="btn-primary">{t('pay_mark_paid')}</button>
-      <button type="button" class="btn-ghost" onclick={() => (paying = false)}>{t('cancel')}</button>
-      <p class="text-xs text-stone-500">{t('paid_cash')} / {t('paid_check')} / {t('paid_payroll')}</p>
-    </div>
-  {/if}
-</form>
-
-<details class="card mt-4">
-  <summary class="cursor-pointer font-semibold">{t('rules_used')}</summary>
-  <table class="table mt-2">
-    <thead><tr><th>{t('state')}</th><th></th><th></th><th>{t('effective')}</th><th>{t('source')}</th><th>{t('checked')}</th></tr></thead>
-    <tbody>
-      {#each data.rules as e}
-        <tr><td>{e.jurisdiction}{e.region ? ' · ' + e.region : ''}</td><td>{e.key}</td><td class="tabular-nums">{e.key === 'min_wage' ? fmtCents(Number(e.value)) + t('per_hour') : e.value + (e.unit === 'hours' ? ' ' + t('hours_unit') : '')}</td><td>{e.effective_from}</td><td><a class="underline" href={e.source_url} target="_blank" rel="noopener">{e.source_title}</a></td><td>{e.checked_on}</td></tr>
-      {/each}
-    </tbody>
-  </table>
-  <p class="mt-2 text-xs text-stone-500">{t('not_legal_advice')}</p>
-</details>
+<ReopenSheet bind:open={reopenOpen} locale={L} />

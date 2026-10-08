@@ -4,6 +4,7 @@ import { requireUser } from '$lib/server/guard';
 import { computeSalonWeek, getRun, hydrateLine } from '$lib/server/payrun';
 import { weekEnd, localDate, nowIso } from '$lib/time';
 import { signShare } from '$lib/server/auth';
+import { statementLangs } from '$lib/statementLang';
 
 export const load: PageServerLoad = async (event) => {
   const { salon, locale } = requireUser(event);
@@ -23,10 +24,11 @@ export const load: PageServerLoad = async (event) => {
     line = c.lines.find((x) => x.worker.id === workerId);
     if (!line) throw error(404);
   }
-  const q = event.url.searchParams.get('lang');
+  const langs = statementLangs(event.url.searchParams.get('lang'), (line.worker.locale as 'en' | 'vi') || locale);
   return {
-    locale: q === 'vi' || q === 'en' ? q : (line.worker.locale as 'en' | 'vi') || locale,
+    ...langs,
     uiLocale: locale,
+    lineId: run && run.status !== 'draft' ? (run.lines.find((x) => x.workerId === workerId)?.id ?? null) : null,
     salon: { name: salon.name, address: salon.address, licenseNo: salon.licenseNo, state: salon.state },
     tz: salon.timezone,
     line,

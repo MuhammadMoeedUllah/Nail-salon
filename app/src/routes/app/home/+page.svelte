@@ -15,8 +15,9 @@
   const L = $derived(data.locale);
   const tz = $derived(data.salon.timezone);
   const firstName = $derived(data.user.name.trim().split(/\s+/)[0]);
-  const working = $derived(data.people.filter((p) => p.state !== 'out'));
-  const counts = $derived({ in: data.people.filter((p) => p.state === 'in').length, brk: data.people.filter((p) => p.state === 'break').length, out: data.people.filter((p) => p.state === 'out').length });
+  const working = $derived(data.people.filter((p) => p.state !== 'out' && !p.stale));
+  const stale = $derived(data.people.filter((p) => p.stale));
+  const counts = $derived({ in: working.filter((p) => p.state === 'in').length, brk: working.filter((p) => p.state === 'break').length, out: data.people.length - working.length });
   const steps = $derived(
     data.setup
       ? [
@@ -77,12 +78,15 @@
                   {#if p.state === 'in' && p.since}{t('home_in_since', { time: fmtClock(p.since, tz, L), elapsed: fmtMinutes(minutesBetween(p.since, data.now)) })}{:else if p.since}{t('home_break_since', { time: fmtClock(p.since, tz, L) })}{/if}
                 </p>
               </div>
-              {#if p.state === 'in'}<StatusPill kind="ok" icon={IconClockIn}>{t('still_in')}</StatusPill>{:else}<StatusPill kind="warn" icon={IconBreak}>{t('kiosk_start_break')}</StatusPill>{/if}
+              {#if p.state === 'in'}<StatusPill kind="ok" icon={IconClockIn}>{t('td_in')}</StatusPill>{:else}<StatusPill kind="warn" icon={IconBreak}>{t('td_on_break')}</StatusPill>{/if}
             </li>
           {/each}
         </ul>
       {:else}
         <p class="mt-2 text-base text-ink-muted">{t('home_nobody_in')}</p>
+      {/if}
+      {#if stale.length}
+        <p class="mt-3 flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-base font-bold text-warn-ink"><IconWarn size={20} class="mt-0.5 shrink-0" />{stale.map((p) => p.name).join(', ')} · {t('td_forgot_out')}</p>
       {/if}
     </section>
   </div>

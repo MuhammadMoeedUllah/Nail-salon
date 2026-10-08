@@ -35,7 +35,7 @@ export const load: PageServerLoad = async (event) => {
       minutes: week.totals.minutes,
       techs: week.lines.filter((l) => l.result.minutesWorked > 0 || l.result.salesCents > 0).length
     },
-    people: ws.map((w) => ({ id: w.id, name: w.displayName, state: st[w.id]?.state ?? 'out', since: st[w.id]?.since ?? null })),
+    people: ws.map((w) => ({ id: w.id, name: w.displayName, state: st[w.id]?.state ?? 'out', since: st[w.id]?.since ?? null, stale: st[w.id]?.staleOpen ?? false })),
     todos,
     setup,
     yesterday: { sales: yt.reduce((s, x) => s + x.price, 0), tickets: yt.length, minutes: yp.reduce((s, p) => s + (p.tsOut ? punchMinutes(p, p.breaks) : 0), 0) }

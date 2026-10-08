@@ -1,3 +1,4 @@
+import { explainLine } from '$lib/pay/explain';
 import pdfmake from 'pdfmake';
 import type { TDocumentDefinitions, Content, TableCell } from 'pdfmake/interfaces';
 import { existsSync } from 'node:fs';
@@ -50,6 +51,8 @@ const H = (s: string): Content => ({ text: s, bold: true, fontSize: 12, margin: 
 
 export interface StatementCtx {
   locale: Locale;
+  /** second language printed under each label (bilingual statements, UX-40) */
+  second?: Locale | null;
   salon: { name: string; address?: string | null; licenseNo?: string | null };
   tz: string;
   period: { start: string; end: string };
@@ -60,20 +63,22 @@ export interface StatementCtx {
 }
 
 export function statementContent(line: WeekLine, ctx: StatementCtx): Content[] {
-  const t = (k: MessageKey, p?: Record<string, string | number>) => translate(ctx.locale, k, p);
+  const t1 = (k: MessageKey, p?: Record<string, string | number>) => translate(ctx.locale, k, p);
+  // bilingual: "Tổng lương / Gross wages"
+  const t = (k: MessageKey, p?: Record<string, string | number>) => (ctx.second ? `${t1(k, p)} / ${translate(ctx.second, k, p)}` : t1(k, p));
   const r = line.result;
   const w = line.worker;
   const basis = (() => {
     switch (w.payBasis) {
-      case 'hourly': return `${t('hourly_rate')} ${fmtCents(w.hourlyRateCents)}${t('per_hour')}${w.commissionPct ? ` + ${t('commission')} ${w.commissionPct}%` : ''}`;
-      case 'day_rate': return `${t('day_rate')} ${fmtCents(w.dayRateCents)}${t('per_day')}`;
-      case 'commission': return `${t('commission')} ${w.commissionPct}%`;
-      case 'day_rate_plus_commission': return `${t('day_rate')} ${fmtCents(w.dayRateCents)}${t('per_day')} + ${t('commission')} ${w.commissionPct}%`;
-      default: return `${t('guarantee')} ${fmtCents(w.guaranteeCents)}${t('per_week')} / ${t('commission')} ${w.commissionPct}%`;
+      case 'hourly': return `${t1('hourly_rate')} ${fmtCents(w.hourlyRateCents)}${t1('per_hour')}${w.commissionPct ? ` + ${t1('commission')} ${w.commissionPct}%` : ''}`;
+      case 'day_rate': return `${t1('day_rate')} ${fmtCents(w.dayRateCents)}${t1('per_day')}`;
+      case 'commission': return `${t1('commission')} ${w.commissionPct}%`;
+      case 'day_rate_plus_commission': return `${t1('day_rate')} ${fmtCents(w.dayRateCents)}${t1('per_day')} + ${t1('commission')} ${w.commissionPct}%`;
+      default: return `${t1('guarantee')} ${fmtCents(w.guaranteeCents)}${t1('per_week')} / ${t1('commission')} ${w.commissionPct}%`;
     }
   })();
   const summary: TableCell[][] = [
-    [td(`${t('hours')} (${t('days')}: ${r.daysWorked})`), td(`${fmtMinutes(r.minutesWorked)} (${fmtHours(r.minutesWorked)} ${t('hours_unit')})`, 'right')],
+    [td(`${t('hours')} (${t1('days')}: ${r.daysWorked})`), td(`${fmtMinutes(r.minutesWorked)} (${fmtHours(r.minutesWorked)} ${t('hours_unit')})`, 'right')],
     [td(`${t('regular_hours')} / ${t('overtime_hours')}`), td(`${fmtHours(r.regularMinutes)} / ${fmtHours(r.overtimeMinutes)}`, 'right')],
     [td(t('sales')), td(fmtCents(r.salesCents), 'right')]
   ];
@@ -81,7 +86,7 @@ export function statementContent(line: WeekLine, ctx: StatementCtx): Content[] {
   if (r.baseCents) summary.push([td(w.payBasis === 'hourly' ? t('hourly_rate') : w.payBasis === 'guarantee_or_commission' ? t('guarantee') : t('day_rate')), td(fmtCents(r.baseCents), 'right')]);
   summary.push([td(t('regular_rate')), td(r.minutesWorked ? fmtRate(r.regularRate) : '—', 'right')]);
   if (r.minWageTopupCents) summary.push([td(t('min_wage_topup'), 'left', { color: '#b91c1c' }), td('+ ' + fmtCents(r.minWageTopupCents), 'right', { color: '#b91c1c' })]);
-  if (r.overtimePremiumCents) summary.push([td(`${t('overtime_premium')} (${fmtHours(r.overtimeMinutes)} ${t('hours_unit')} × ½ × ${fmtRate(r.regularRate)})`, 'left', { color: '#b91c1c' }), td('+ ' + fmtCents(r.overtimePremiumCents), 'right', { color: '#b91c1c' })]);
+  if (r.overtimePremiumCents) summary.push([td(`${t('overtime_premium')} (${fmtHours(r.overtimeMinutes)} ${t1('hours_unit')} × ½ × ${fmtRate(r.regularRate)})`, 'left', { color: '#b91c1c' }), td('+ ' + fmtCents(r.overtimePremiumCents), 'right', { color: '#b91c1c' })]);
   if (r.spreadOfHoursCents) summary.push([td(t('spread_of_hours')), td('+ ' + fmtCents(r.spreadOfHoursCents), 'right')]);
   if (r.deductionsCents) summary.push([td(t('deductions')), td('− ' + fmtCents(r.deductionsCents), 'right')]);
   summary.push([td(t('gross_wages'), 'left', { bold: true }), td(fmtCents(r.grossWagesCents), 'right', { bold: true })]);
@@ -91,7 +96,7 @@ export function statementContent(line: WeekLine, ctx: StatementCtx): Content[] {
     summary.push([td('   ' + t('card_tips_owed_label')), td(fmtCents(r.tipsCardOwedCents), 'right')]);
   }
   summary.push([td(t('tip_cash')), td(fmtCents(r.tipsCashCents), 'right')]);
-  summary.push([td(`${t('total_pay')} (${t('gross_wages')} + ${t('card_tips_owed')})`, 'left', { bold: true, fontSize: 11 }), td(fmtCents(r.totalCents), 'right', { bold: true, fontSize: 11 })]);
+  summary.push([td(t('total_pay'), 'left', { bold: true, fontSize: 11 }), td(fmtCents(r.totalCents), 'right', { bold: true, fontSize: 11 })]);
   if (ctx.paid && (ctx.paid.cash || ctx.paid.check || ctx.paid.payroll)) {
     const parts = [ctx.paid.cash ? `${t('cash')} ${fmtCents(ctx.paid.cash)}` : '', ctx.paid.check ? `${t('paid_check')} ${fmtCents(ctx.paid.check)}` : '', ctx.paid.payroll ? `${t('paid_payroll')} ${fmtCents(ctx.paid.payroll)}` : ''].filter(Boolean);
     summary.push([td(t('st_paid_by')), td(parts.join(' · '), 'right')]);
@@ -104,20 +109,10 @@ export function statementContent(line: WeekLine, ctx: StatementCtx): Content[] {
   const tkRows: TableCell[][] = line.tickets.map((tk) => [td(fmtDate(tk.workDate, ctx.locale)), td(localTime(tk.ts, ctx.tz)), td(tk.ticketNo ?? ''), td(tk.serviceName), td(fmtCents(tk.priceCents), 'right'), td(tk.tipCardCents ? fmtCents(tk.tipCardCents) : '', 'right'), td(tk.tipCashCents ? fmtCents(tk.tipCashCents) : '', 'right')]);
   tkRows.push([td(`${t('total')} (${line.tickets.length})`, 'left', { bold: true, colSpan: 4 }), {}, {}, {}, td(fmtCents(r.salesCents), 'right', { bold: true }), td(fmtCents(r.tipsCardCents), 'right', { bold: true }), td(fmtCents(r.tipsCashCents), 'right', { bold: true })]);
 
-  const fmtInput = (k: string, v: unknown) => {
-    if (typeof v !== 'number') return String(v);
-    if (k.endsWith('Cents')) return fmtCents(v);
-    if (k === 'minutes' || k.endsWith('Minutes')) return `${fmtHours(v)} ${t('hours_unit')}`;
-    if (k === 'regularRate') return fmtRate(v);
-    if (k.endsWith('Pct')) return `${v}%`;
-    return String(v);
-  };
-  const labels: Record<string, MessageKey> = { commission: 'commission', hourly_base: 'hourly_rate', day_rate_base: 'day_rate', guarantee: 'guarantee', regular_rate: 'regular_rate', min_wage_topup: 'min_wage_topup', overtime_premium: 'overtime_premium', spread_of_hours: 'spread_of_hours', gross_wages: 'gross_wages', tips: 'tips' };
-  const bdRows: TableCell[][] = r.breakdown.map((b) => [
-    td(labels[b.key] ? t(labels[b.key]) : b.key, 'left', { bold: true }),
-    td(Object.entries(b.inputs).map(([k, v]) => `${k}: ${fmtInput(k, v)}`).join(' · '), 'left', { color: '#555' }),
-    td(b.resultCents !== undefined ? fmtCents(b.resultCents) : b.resultRate !== undefined ? fmtRate(b.resultRate) : '', 'right'),
-    td(b.rule ?? '', 'left', { color: '#777', fontSize: 7 })
+  // the calculation as sentences, never variable names (R29)
+  const bdRows: TableCell[][] = r.breakdown.map((b, i) => [
+    td(String(i + 1), 'left', { color: '#777' }),
+    { stack: [{ text: explainLine(b, ctx.locale) }, ...(ctx.second ? [{ text: explainLine(b, ctx.second), color: '#666' }] : []), ...(b.rule ? [{ text: b.rule, color: '#888', fontSize: 7 }] : [])] }
   ]);
 
   return [
@@ -143,7 +138,7 @@ export function statementContent(line: WeekLine, ctx: StatementCtx): Content[] {
       ? { table: { widths: ['auto', 'auto', 'auto', '*', 'auto', 'auto', 'auto'], headerRows: 1, body: [[th(t('date')), th(t('time')), th(t('ticket_no')), th(t('service')), th(t('price'), 'right'), th(t('tip_card'), 'right'), th(t('tip_cash'), 'right')], ...tkRows] }, layout: 'lightHorizontalLines', fontSize: 8 }
       : { text: t('no_tickets'), color: '#777' },
     H(t('st_how_computed')),
-    { table: { widths: ['auto', '*', 'auto', 'auto'], body: bdRows }, layout: 'lightHorizontalLines', fontSize: 8 },
+    { table: { widths: ['auto', '*'], body: bdRows }, layout: 'lightHorizontalLines', fontSize: 8 },
     ...(r.flags.length ? [{ text: `${t('flags')}: ${r.flags.map((f) => t(`flag_${f}` as MessageKey)).join(' · ')}`, fontSize: 8, margin: [0, 4, 0, 0] } as Content] : []),
     { text: t('st_questions', { date: ctx.generatedOn }), fontSize: 7, color: '#777', margin: [0, 14, 0, 0] },
     { text: t('not_legal_advice'), fontSize: 7, color: '#777' }

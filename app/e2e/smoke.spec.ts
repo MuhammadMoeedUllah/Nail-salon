@@ -50,12 +50,18 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await expect(page.locator('table tbody tr').first()).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/03-pay-week-draft.png`, fullPage: true });
 
-  // approve
+  // approve: two presses, no modal
   const approveBtn = page.locator('form[action="?/approve"] button');
   if (await approveBtn.count()) {
-    await approveBtn.click();
-    await expect(page.locator('a', { hasText: 'Gusto CSV' })).toBeVisible();
+    await approveBtn.first().click();
+    await page.waitForTimeout(400); // a second press within 350 ms counts as a double tap and is ignored
+    await page.locator('form[action="?/approve"] button[type=submit]', { hasText: /Confirm|Xác nhận/ }).click();
+    await expect(page.locator('[data-testid=run-status] [aria-current=step]')).toContainText(/Approved|Đã duyệt|Paid|Đã trả/);
   }
+  // exports live in the options menu once approved
+  await page.locator('button[aria-label="Options"], button[aria-label="Tùy chọn"]').click();
+  await expect(page.locator('[role=menuitem]', { hasText: 'Gusto CSV' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.screenshot({ path: `${SHOTS}/04-pay-week-approved.png`, fullPage: true });
 
   // exports
@@ -94,11 +100,15 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await ap.screenshot({ path: `${SHOTS}/07-shared-statement.png`, fullPage: true });
   await anon.close();
 
-  // mark paid in one click
+  // mark paid: one action, confirmed with the amount
   await page.goto(`${BASE}${href}`);
   const payBtn = page.locator('button', { hasText: /Mark all paid by check today|Đánh dấu đã trả hết/ });
-  if (await payBtn.count()) await payBtn.click();
-  await expect(page.locator('h1 .badge')).toContainText(/Paid|Đã trả/);
+  if (await payBtn.count()) {
+    await payBtn.click();
+    await page.waitForTimeout(400);
+    await page.locator('button[type=submit]', { hasText: /Confirm|Xác nhận/ }).click();
+  }
+  await expect(page.locator('[data-testid=run-status] [aria-current=step]')).toContainText(/Paid|Đã trả/);
 
   // audit page + exports
   await page.goto(`${BASE}/app/audit`);

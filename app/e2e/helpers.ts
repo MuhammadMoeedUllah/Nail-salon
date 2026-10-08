@@ -29,6 +29,8 @@ export async function setLocale(page: Page, l: 'en' | 'vi', next = '/app/home') 
 export const OWNER_ROUTES: { name: string; path: string }[] = [
   { name: 'home', path: '/app/home' },
   { name: 'today', path: '/app/today' },
+  { name: 'pay', path: '/app/pay' },
+  { name: 'pay-week', path: `/app/pay/${LAST_WEEK}` },
   { name: 'more', path: '/app/more' }
 ];
 
