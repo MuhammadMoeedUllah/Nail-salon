@@ -6,6 +6,7 @@
 |---|---|
 | [`research/`](research/README.md) | Six sourced memos on the market, incumbents, payroll file formats, wage-hour law, the stack and user voices, plus `rules-seed.json` and an EN/VI glossary |
 | [`docs/PLAN.md`](docs/PLAN.md) | The build spec: screens, pay engine, data model, libraries, deployment, and what the research changed |
+| [`docs/UX-REVAMP-PLAN.md`](docs/UX-REVAMP-PLAN.md) | The interface revamp plan (2026-10-08): design system, navigation, screen specs and a ticket backlog ready to implement; before-screenshots in `docs/ux-audit/` |
 | [`app/`](app/README.md) | The application: SvelteKit 2, SQLite, bilingual, with tests, a demo seed, Dockerfile and Fly config |
 
 

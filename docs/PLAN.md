@@ -170,3 +170,7 @@ Booking, POS, payments, payroll tax filing, W-2s, SMS, native apps, turn assignm
 1. Do owners want the tablet to show today's ticket count per technician (a turn board), or does that invite disputes at the front desk?
 2. Weekly or biweekly: the research says weekly by custom and biweekly on Gusto or ADP. Default is weekly; the setting exists.
 3. Should card tips paid out in cash the same day be recorded as already paid, so the week's "total to pay" excludes them? The field exists on the pay line; the default counts card tips as owed.
+
+## 11. Interface revamp (planned 2026-10-08)
+
+The v1 screens above work but were built for function first. `docs/UX-REVAMP-PLAN.md` replaces §3 of this document for the user interface: a token-based design system, a four-tab phone navigation with a sidebar on tablets, a kiosk status board, a three-tap ticket builder, a pay week that reads as cards on phones, bilingual statements, and a numbered ticket backlog grounded in `research/11-ui-ux-patterns-and-evidence.md`. The pay engine, data model, rules and exports in §4-§7 are unchanged by it.
