@@ -1,5 +1,14 @@
 # Product 01: Nail-salon pay records
 
+**Where things are (2026-10-07):**
+
+| Folder | Content |
+|---|---|
+| [`research/`](research/README.md) | Six sourced memos on the market, incumbents, payroll file formats, wage-hour law, the stack and user voices, plus `rules-seed.json` and an EN/VI glossary |
+| [`docs/PLAN.md`](docs/PLAN.md) | The build spec: screens, pay engine, data model, libraries, deployment, and what the research changed |
+| [`app/`](app/README.md) | The application: SvelteKit 2, SQLite, bilingual, with tests, a demo seed, Dockerfile and Fly config |
+
+
 **Status:** first product to build. It has the highest market-adjusted score of all 26 domain winners (16.0: a hand score of 14 plus 2.0 from the market scan), one of only three "strengthen" verdicts among 78 picks, and no direct rival in the scan. See `launch/candidates/CANDIDATES.md`, row 1.
 
 **One line:** A shared-tablet clock-in and ticket log that turns a salon's day-rate-plus-commission habit into weekly pay records that hold up to a wage-and-hour audit, in English and Vietnamese.

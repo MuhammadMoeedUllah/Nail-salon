@@ -1,0 +1,46 @@
+@import 'tailwindcss';
+
+@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/NotoSans-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/NotoSans-Bold.ttf') format('truetype'); }
+
+@theme {
+  --font-sans: 'Noto Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+}
+
+html, body { height: 100%; }
+
+/* Large touch targets for the shared tablet */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-semibold shadow-sm transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  min-height: 48px;
+}
+@utility btn-primary { @apply btn bg-brand-700 text-white hover:bg-brand-800; }
+@utility btn-secondary { @apply btn bg-white text-stone-800 ring-1 ring-stone-300 hover:bg-stone-100; }
+@utility btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
+@utility btn-ghost { @apply btn bg-transparent text-stone-700 shadow-none hover:bg-stone-100; }
+@utility input {
+  @apply w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-base shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100;
+  min-height: 48px;
+}
+@utility label { @apply mb-1 block text-sm font-medium text-stone-700; }
+@utility card { @apply rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200; }
+@utility badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
+@utility cell-owed { @apply bg-red-50 font-semibold text-red-700; }
+
+@layer components {
+  .table { @apply w-full border-collapse text-sm; }
+  .table th { @apply border-b border-stone-200 bg-stone-50 px-3 py-2 text-left font-semibold text-stone-600; }
+  .table td { @apply border-b border-stone-100 px-3 py-2 align-top; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+  .card { box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+  @page { margin: 14mm; }
+}
