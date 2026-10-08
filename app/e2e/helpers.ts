@@ -31,7 +31,21 @@ export const OWNER_ROUTES: { name: string; path: string }[] = [
   { name: 'today', path: '/app/today' },
   { name: 'pay', path: '/app/pay' },
   { name: 'pay-week', path: `/app/pay/${LAST_WEEK}` },
-  { name: 'more', path: '/app/more' }
+  { name: 'more', path: '/app/more' },
+  { name: 'workers', path: '/app/workers' },
+  { name: 'worker-new', path: '/app/workers/new' },
+  { name: 'services', path: '/app/services' },
+  { name: 'settings', path: '/app/settings' },
+  { name: 'tablets', path: '/app/tablets' },
+  { name: 'audit', path: '/app/audit' },
+  { name: 'import', path: '/app/tickets/import' }
+];
+
+/** Pages a signed-out visitor sees. */
+export const PUBLIC_ROUTES: { name: string; path: string }[] = [
+  { name: 'login', path: '/login' },
+  { name: 'signup', path: '/signup' },
+  { name: 'pair', path: '/kiosk/pair' }
 ];
 
 /** Visible interactive elements smaller than the hard floor (44 px), ignoring inline text links (WCAG 2.5.8 exception). */

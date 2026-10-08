@@ -21,16 +21,16 @@ export const actions: Actions = {
     const password = String(form.get('password') ?? '');
     const key = `${getClientAddress()}:${email}`;
     const a = attempts.get(key);
-    if (a && a.until > Date.now()) return fail(429, { error: 'Too many attempts. Wait a minute.', email });
+    if (a && a.until > Date.now()) return fail(429, { error: 'lg_too_many', email });
     const user = await db.select().from(users).where(eq(users.email, email)).get();
     const ok = user ? await verifyPassword(user.passwordHash, password) : false;
     if (!user || !ok) {
       const n = (a?.n ?? 0) + 1;
       attempts.set(key, { n, until: n >= 5 ? Date.now() + 60000 : 0 });
-      return fail(400, { error: 'Wrong email or password.', email });
+      return fail(400, { error: 'lg_wrong', email });
     }
     attempts.delete(key);
-    await createSession(user.id, cookies);
+    await createSession(user.id, cookies, form.get('remember') === '1');
     const next = url.searchParams.get('next');
     throw redirect(303, next && next.startsWith('/') ? next : '/app/home');
   }

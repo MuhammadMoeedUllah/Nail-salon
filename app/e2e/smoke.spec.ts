@@ -112,9 +112,9 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
 
   // audit page + exports
   await page.goto(`${BASE}/app/audit`);
-  await expect(page.locator('tbody tr').first()).toBeVisible();
+  await expect(page.locator('[data-testid=history] li').first()).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/08-audit.png`, fullPage: true });
-  const pdfA = page.locator('a', { hasText: /Export PDF|Xuất PDF/ });
+  const pdfA = page.locator('a', { hasText: /PDF binder|Hồ sơ PDF/ });
   const pdfAHref = await pdfA.getAttribute('href');
   const b = await page.request.get(`${BASE}${pdfAHref}`);
   expect(b.status()).toBe(200);
@@ -132,7 +132,8 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
 
   // import page renders
   await page.goto(`${BASE}/app/tickets/import`);
-  await expect(page.locator('input[type=file]')).toBeVisible();
+  await expect(page.locator('input[type=file]')).toBeAttached();
+  await expect(page.getByText(/Drop the CSV file here|Thả file CSV vào đây/)).toBeVisible();
 });
 
 test('tablet pairs and a technician clocks in and out with a PIN', async ({ browser }) => {

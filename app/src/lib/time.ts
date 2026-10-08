@@ -149,3 +149,26 @@ export function fmtWeekday(date: string, locale: 'en' | 'vi' = 'en', style: 'lon
   const [y, m, d] = date.split('-').map(Number);
   return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { timeZone: 'UTC', weekday: style }).format(new Date(Date.UTC(y, m - 1, d)));
 }
+
+/** "2 min. ago", "3 hr. ago", "yesterday" in the reader's language. */
+export function fmtAgo(iso: string, locale: 'en' | 'vi' = 'en', now: number = Date.now()): string {
+  const s = Math.round((new Date(iso).getTime() - now) / 1000);
+  const rtf = new Intl.RelativeTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { numeric: 'auto', style: 'short' });
+  const a = Math.abs(s);
+  if (a < 60) return rtf.format(0, 'second');
+  if (a < 3600) return rtf.format(Math.round(s / 60), 'minute');
+  if (a < 86400) return rtf.format(Math.round(s / 3600), 'hour');
+  return rtf.format(Math.round(s / 86400), 'day');
+}
+
+/** "Jan 1, 2026" / "1 thg 1, 2026": a calendar date with the year, no weekday. */
+export function fmtDateYear(date: string, locale: 'en' | 'vi' = 'en'): string {
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(date + 'T12:00:00Z'));
+}
+
+/** A wall-clock "HH:MM" as people say it: "7:30 PM" in English, "19:30" in Vietnamese. */
+export function fmtWall(hhmm: string, locale: 'en' | 'vi' = 'en'): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  if (locale === 'vi') return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}

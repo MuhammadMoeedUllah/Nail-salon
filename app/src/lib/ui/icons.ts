@@ -59,3 +59,6 @@ export { default as IconIn } from '@lucide/svelte/icons/circle-dot';
 export { default as IconExternal } from '@lucide/svelte/icons/external-link';
 export { default as IconSteps } from '@lucide/svelte/icons/list-checks';
 export { default as IconGrip } from '@lucide/svelte/icons/grip-vertical';
+export { default as IconSort } from '@lucide/svelte/icons/arrow-down-wide-narrow';
+export { default as IconOnline } from '@lucide/svelte/icons/wifi';
+export { default as IconLink } from '@lucide/svelte/icons/link';

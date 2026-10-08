@@ -44,3 +44,13 @@ export function toWorkerValues(v: z.infer<typeof WorkerSchema>) {
     active: v.active === 'on' || v.active === 'true'
   };
 }
+
+/** Zod issues as message keys per field, shown under each control (R19). */
+export function fieldErrors(issues: { path: PropertyKey[] }[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const i of issues) {
+    const k = String(i.path[0] ?? 'form');
+    out[k] ??= k === 'pin' ? 'wk_pin_digits' : 'wk_required';
+  }
+  return out;
+}

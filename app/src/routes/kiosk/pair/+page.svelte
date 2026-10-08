@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { makeT } from '$lib/i18n';
+  import { makeT, type MessageKey } from '$lib/i18n';
+  import PasswordInput from '$lib/ui/PasswordInput.svelte';
   import LangSwitch from '$lib/components/LangSwitch.svelte';
   import { busy } from '$lib/ui/forms';
   import { IconTablet, IconSteps, IconClockIn } from '$lib/ui/icons';
@@ -22,16 +23,17 @@
     {#if data.alreadyPaired}
       <p class="mb-4 rounded-xl bg-ok-soft p-3 text-base font-bold text-ok-ink">✓ {data.salonName}</p>
       <a class="btn-primary min-h-14 w-full text-lg" href="/kiosk"><IconClockIn size={22} />{t('nav_kiosk')}</a>
+      <a class="btn-secondary mt-3 w-full" href="/kiosk/setup"><IconSteps size={20} />{t('pr_open_setup')}</a>
     {:else}
-      {#if form?.error}<p class="mb-4 rounded-xl bg-owed-soft p-3 text-base font-bold text-owed-ink" role="alert">{form.error}</p>{/if}
+      {#if form?.error}<p class="mb-4 rounded-xl bg-owed-soft p-3 text-base font-bold text-owed-ink" role="alert">{t(form.error as MessageKey)}</p>{/if}
       <form method="post" use:enhance={busy()} class="space-y-4">
         {#if !data.signedIn}
-          <div><label class="label" for="email">{t('email')}</label><input class="input" id="email" name="email" type="email" required /></div>
-          <div><label class="label" for="password">{t('password')}</label><input class="input" id="password" name="password" type="password" required /></div>
+          <div><label class="label" for="email">{t('email')}</label><input class="input min-h-14 text-lg" id="email" name="email" type="email" autocomplete="email" autocapitalize="off" spellcheck="false" required /></div>
+          <div><label class="label" for="password">{t('password')}</label><PasswordInput id="password" name="password" autocomplete="current-password" required showLabel={t('pw_show')} hideLabel={t('pw_hide')} inputClass="min-h-14 text-lg" /></div>
         {:else}
           <p class="text-base font-bold">{data.salonName}</p>
         {/if}
-        <div><label class="label" for="deviceName">{t('kiosk_device_name')}</label><input class="input" id="deviceName" name="deviceName" placeholder="Front desk" /></div>
+        <div><label class="label" for="deviceName">{t('kiosk_device_name')}</label><input class="input min-h-14 text-lg" id="deviceName" name="deviceName" placeholder="Front desk" /></div>
         <button class="btn-primary min-h-14 w-full text-lg" type="submit">{t('kiosk_pair')}</button>
       </form>
     {/if}

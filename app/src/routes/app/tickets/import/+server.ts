@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guard';
 import { db } from '$lib/server/db';
-import { tickets, importBatches, workers } from '$lib/server/db/schema';
+import { tickets, importBatches, importMappings, workers } from '$lib/server/db/schema';
 import { newId } from '$lib/server/auth';
 import { recordEdit } from '$lib/server/audit';
 import { localToIso } from '$lib/time';
@@ -13,6 +13,8 @@ const Body = z.object({
   format: z.string().max(40),
   fileName: z.string().max(200).optional(),
   staffMap: z.record(z.string(), z.string()),
+  columnMap: z.record(z.string(), z.string().nullable()).nullable().optional(),
+  tipsAre: z.enum(['card', 'cash', 'by_method']).optional(),
   tickets: z
     .array(
       z.object({
@@ -90,5 +92,13 @@ export const POST: RequestHandler = async (event) => {
     createdByUserId: user.id
   });
   await recordEdit({ salonId: salon.id, entity: 'import', entityId: batchId, action: 'import', newValue: { format: b.format, file: b.fileName, imported, skipped }, actor: { type: 'user', id: user.id, name: user.name } });
-  return json({ ok: true, imported, skipped, unmatched: [...unmatched] });
+  // remember the matches for this export format, so the next file of the same kind needs no choices
+  const staffMap = Object.fromEntries(Object.entries(b.staffMap).filter(([, id]) => id === '' || valid.has(id)));
+  const values = { staffMap: JSON.stringify(staffMap), columnMap: b.columnMap ? JSON.stringify(b.columnMap) : null, tipsAre: b.tipsAre ?? 'by_method', updatedAt: new Date().toISOString() };
+  await db
+    .insert(importMappings)
+    .values({ id: newId(), salonId: salon.id, format: b.format, ...values })
+    .onConflictDoUpdate({ target: [importMappings.salonId, importMappings.format], set: values });
+  const dates = b.tickets.filter((t) => b.staffMap[t.staffName]).map((t) => t.workDate).sort();
+  return json({ ok: true, imported, skipped, unmatched: [...unmatched], firstDate: dates[0] ?? null, lastDate: dates.at(-1) ?? null });
 };
