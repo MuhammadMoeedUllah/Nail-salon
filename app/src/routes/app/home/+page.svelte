@@ -22,7 +22,7 @@
     data.setup
       ? [
           { label: t('setup_techs'), hint: t('setup_techs_hint'), href: '/app/workers/new', done: data.setup.techs },
-          { label: t('setup_tablet'), hint: t('setup_tablet_hint'), href: '/kiosk/pair', done: data.setup.tablet },
+          { label: t('setup_tablet'), hint: t('setup_tablet_hint'), href: '/app/tablets', done: data.setup.tablet },
           { label: t('setup_first_punch'), hint: t('setup_first_punch_hint'), href: '/kiosk', done: data.setup.punch },
           { label: t('setup_first_ticket'), hint: t('setup_first_ticket_hint'), href: '/app/today', done: data.setup.ticket },
           { label: t('setup_first_week'), hint: t('setup_first_week_hint'), href: '/app/pay', done: data.setup.week }

@@ -13,7 +13,7 @@
 
 <main class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
   <div class="mb-6 flex items-center justify-between">
-    <span class="flex items-center gap-2 text-lg font-bold text-brand-800"><img src="/favicon.svg" alt="" class="h-8 w-8" />{t('app_name')}</span>
+    <span class="flex items-center gap-2 text-lg font-bold text-ink"><img src="/favicon.svg" alt="" class="h-8 w-8" />{t('app_name')}</span>
     <LangSwitch locale={data.locale} compact label={t('language')} />
   </div>
   <div class="card">

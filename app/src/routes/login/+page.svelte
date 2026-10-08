@@ -42,5 +42,5 @@
     {#if data.hasDevice}<a href="/kiosk" class="btn-secondary mt-4 w-full"><IconClockIn size={20} />{t('nav_kiosk')}</a>{/if}
   </div>
   <p class="mt-6 text-center text-base text-ink-muted">{t('tagline')}</p>
-  <p class="mt-2 text-center text-sm text-ink-soft">{t('not_legal_advice')}</p>
+  <p class="mt-2 text-center text-sm text-ink-muted">{t('not_legal_advice')}</p>
 </main>

@@ -70,7 +70,7 @@
           <div class="min-w-0 flex-1">
             <a href="/app/workers/{w.id}" class="text-lg leading-tight font-bold text-ink after:absolute after:inset-0 after:content-['']">{w.displayName}</a>
             <p class="text-sm text-ink-muted">{basisSentence(w, t)}</p>
-            <p class="hidden text-sm text-ink-soft sm:block">{w.legalName} · {w.locale === 'vi' ? 'Tiếng Việt' : 'English'} · {w.classification === '1099' ? '1099' : 'W-2'}</p>
+            <p class="hidden text-sm text-ink-muted sm:block">{w.legalName} · {w.locale === 'vi' ? 'Tiếng Việt' : 'English'} · {w.classification === '1099' ? '1099' : 'W-2'}</p>
             {#if !w.active || w.locked}
               <p class="mt-1.5 flex flex-wrap gap-1.5">
                 {#if !w.active}<StatusPill kind="neutral">{t('wk_not_active')}</StatusPill>{/if}

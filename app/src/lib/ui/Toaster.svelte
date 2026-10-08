@@ -16,7 +16,7 @@
   }
 </script>
 
-<div aria-live="polite" class="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-3 {withNav ? 'bottom-[calc(76px+env(safe-area-inset-bottom))] lg:bottom-6' : 'bottom-6'}">
+<div aria-live="polite" class="no-print pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-3 {withNav ? 'bottom-[calc(76px+env(safe-area-inset-bottom))] lg:bottom-6' : 'bottom-6'}">
   {#if toaster.current}
     {@const t = toaster.current}
     {#key t.id}

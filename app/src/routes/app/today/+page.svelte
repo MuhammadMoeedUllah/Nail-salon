@@ -1,22 +1,19 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
   import { makeT } from '$lib/i18n';
   import { fmtCents, fmtClock, fmtDateLong, fmtMinutes, fmtWeekday } from '$lib/time';
   import PageHeader from '$lib/ui/PageHeader.svelte';
   import Menu from '$lib/ui/Menu.svelte';
-  import Sheet from '$lib/ui/Sheet.svelte';
+  import { scrollMotion } from '$lib/ui/motion';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { toast } from '$lib/ui/toast.svelte';
   import { postAction } from '$lib/ui/actions';
   import DayStrip from '$lib/today/DayStrip.svelte';
   import TicketBuilder from '$lib/today/TicketBuilder.svelte';
   import TechDay, { type Punch, type Ticket } from '$lib/today/TechDay.svelte';
-  import FixPunchSheet from '$lib/today/FixPunchSheet.svelte';
-  import VoidSheet from '$lib/today/VoidSheet.svelte';
-  import AddHoursSheet from '$lib/today/AddHoursSheet.svelte';
   import { IconCalendar, IconImport, IconAdd, IconOwed, IconDone, IconNext, IconCashTips, IconToday } from '$lib/ui/icons';
 
   let { data } = $props();
@@ -49,6 +46,37 @@
   let hoursFor = $state('');
   let hoursOpen = $state(false);
 
+  // The four sheets load on first use, or on the first touch, instead of with the page (UX-56).
+  type Lazy = {
+    Sheet: typeof import('$lib/ui/Sheet.svelte').default;
+    FixPunchSheet: typeof import('$lib/today/FixPunchSheet.svelte').default;
+    VoidSheet: typeof import('$lib/today/VoidSheet.svelte').default;
+    AddHoursSheet: typeof import('$lib/today/AddHoursSheet.svelte').default;
+  };
+  let lazy = $state<Lazy | null>(null);
+  let loading: Promise<unknown> | null = null;
+  function sheets() {
+    loading ??= Promise.all([import('$lib/ui/Sheet.svelte'), import('$lib/today/FixPunchSheet.svelte'), import('$lib/today/VoidSheet.svelte'), import('$lib/today/AddHoursSheet.svelte')]).then(
+      ([a, b, c, d]) => (lazy = { Sheet: a.default, FixPunchSheet: b.default, VoidSheet: c.default, AddHoursSheet: d.default })
+    );
+    return loading;
+  }
+  onMount(() => {
+    const warm = () => sheets();
+    addEventListener('pointerdown', warm, { once: true, capture: true });
+    addEventListener('keydown', warm, { once: true, capture: true });
+    const idle = setTimeout(warm, 4000);
+    return () => {
+      clearTimeout(idle);
+      removeEventListener('pointerdown', warm, true);
+      removeEventListener('keydown', warm, true);
+    };
+  });
+  async function openBuilder() {
+    await sheets();
+    builderOpen = true;
+  }
+
   // deep links from Home (?focus=<punch or ticket id>) open that technician and scroll to them (UX-33)
   $effect(() => {
     const f = focus;
@@ -56,7 +84,7 @@
     const owner = data.punches.find((p) => p.id === f)?.workerId ?? data.tickets.find((x) => x.id === f)?.workerId;
     if (!owner) return;
     open[owner] = true;
-    tick().then(() => document.getElementById(`tech-${owner}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    tick().then(() => document.getElementById(`tech-${owner}`)?.scrollIntoView({ block: 'center', behavior: scrollMotion() }));
   });
 
   function pickDate(e: Event) {
@@ -83,8 +111,9 @@
     if (undo) toast(t('ts_undone'), { kind: 'info' });
     else toast(t('ts_tips_paid', { amount: fmtCents(amount) }), { undo: () => postAction('?/payOutTips', { workerId, date: data.date, undo: '1' }) });
   }
-  function addHours(workerId: string) {
+  async function addHours(workerId: string) {
     hoursFor = workerId;
+    await sheets();
     hoursOpen = true;
   }
 </script>
@@ -135,7 +164,7 @@
     {#if empty}
       <div class="card">
         <EmptyState icon={IconToday} title={t('em_day_title', { day: fmtWeekday(data.date, L) })} text={t('em_day_text')}>
-          <button type="button" class="btn-primary lg:hidden" onclick={() => (builderOpen = true)}><IconAdd size={20} />{t('add_ticket')}</button>
+          <button type="button" class="btn-primary lg:hidden" onclick={openBuilder}><IconAdd size={20} />{t('add_ticket')}</button>
           <a href="/app/tickets/import" class="btn-secondary"><IconImport size={20} />{t('import_csv')}</a>
         </EmptyState>
       </div>
@@ -153,8 +182,8 @@
           collapsible={!wide.current}
           bind:expanded={() => open[w.id] ?? false, (v) => (open[w.id] = v)}
           focusId={focus}
-          onfix={(p) => { fixing = p; fixOpen = true; }}
-          onvoid={(x) => { voiding = x; voidOpen = true; }}
+          onfix={async (p) => { fixing = p; await sheets(); fixOpen = true; }}
+          onvoid={async (x) => { voiding = x; await sheets(); voidOpen = true; }}
           onaddhours={() => addHours(w.id)}
           onclockout={clockOut}
           onpayout={(undo, amount) => payOut(w.id, undo, amount)}
@@ -166,15 +195,17 @@
 </div>
 
 <div class="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 px-4 pb-3 lg:hidden">
-  <button type="button" class="btn-primary mx-auto flex min-h-14 w-full max-w-xl text-lg shadow-float" onclick={() => (builderOpen = true)}><IconAdd size={22} strokeWidth={2.5} />{t('add_ticket')}</button>
+  <button type="button" class="btn-primary mx-auto flex min-h-14 w-full max-w-xl text-lg shadow-float" onclick={openBuilder}><IconAdd size={22} strokeWidth={2.5} />{t('add_ticket')}</button>
 </div>
 
-<Sheet bind:open={builderOpen} title={t('add_ticket')} closeLabel={t('close')}>
-  {#if !wide.current}
-    <TicketBuilder workers={active} services={data.services} date={data.date} locale={L} idPrefix="tbs" bind:selected onadded={(l) => (open[l.workerId] = true)} />
-  {/if}
-</Sheet>
+{#if lazy}
+  <lazy.Sheet bind:open={builderOpen} title={t('add_ticket')} closeLabel={t('close')}>
+    {#if !wide.current}
+      <TicketBuilder workers={active} services={data.services} date={data.date} locale={L} idPrefix="tbs" bind:selected onadded={(l) => (open[l.workerId] = true)} />
+    {/if}
+  </lazy.Sheet>
 
-<FixPunchSheet bind:open={fixOpen} punch={fixing} name={fixing ? nameOf(fixing.workerId) : ''} locale={L} onsaved={onFixSaved} />
-<VoidSheet bind:open={voidOpen} ticket={voiding} name={voiding ? nameOf(voiding.workerId) : ''} locale={L} onsaved={onVoided} />
-<AddHoursSheet bind:open={hoursOpen} workers={active} bind:workerId={hoursFor} date={data.date} closingTime={data.closingTime} locale={L} onsaved={(r) => toast(t('ts_hours_added', { name: r.name }), { undo: () => postAction('?/fixPunch', { id: r.id, void: '1', reason: t('ts_reason_undo') }) })} />
+  <lazy.FixPunchSheet bind:open={fixOpen} punch={fixing} name={fixing ? nameOf(fixing.workerId) : ''} locale={L} onsaved={onFixSaved} />
+  <lazy.VoidSheet bind:open={voidOpen} ticket={voiding} name={voiding ? nameOf(voiding.workerId) : ''} locale={L} onsaved={onVoided} />
+  <lazy.AddHoursSheet bind:open={hoursOpen} workers={active} bind:workerId={hoursFor} date={data.date} closingTime={data.closingTime} locale={L} onsaved={(r) => toast(t('ts_hours_added', { name: r.name }), { undo: () => postAction('?/fixPunch', { id: r.id, void: '1', reason: t('ts_reason_undo') }) })} />
+{/if}

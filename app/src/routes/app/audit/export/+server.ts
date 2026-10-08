@@ -8,6 +8,7 @@ import { db } from '$lib/server/db';
 import { edits, workers, payRuns, payLines, tickets, punches, breaks } from '$lib/server/db/schema';
 import { hydrateLine, computeSalonWeek, type WeekLine } from '$lib/server/payrun';
 import { binderPdf } from '$lib/server/pdf';
+import { describeEdits } from '$lib/server/auditHistory';
 import { punchMinutes } from '$lib/server/punches';
 import { ruleSetFor, retentionYears } from '$lib/rules';
 import { addDays, localDate, nowIso, weekStart, localTime } from '$lib/time';
@@ -74,7 +75,7 @@ export const GET: RequestHandler = async (event) => {
       workers: ws,
       weeks,
       punches: punchRows,
-      edits: eds.map((e) => ({ ts: e.ts, actorName: e.actorName, actorType: e.actorType, entity: e.entity, entityId: e.entityId, action: e.action, field: e.field, oldValue: e.oldValue, newValue: e.newValue, reason: e.reason })),
+      edits: (await describeEdits(eds, salon, L)).map((e) => ({ ts: e.ts, text: e.text, entity: e.entity, entityId: e.entityId, reason: e.reason })),
       rules
     });
     return new Response(new Uint8Array(pdf), { headers: { 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="${base}.pdf"` } });
@@ -107,7 +108,7 @@ export const GET: RequestHandler = async (event) => {
     tipMonths.set(k, e);
   }
   files['tips_by_month.csv'] = csv([...tipMonths.values()].map((e) => ({ ...e, tips_card: dollars(e.tips_card), tips_cash: dollars(e.tips_cash), tips_total: dollars(e.tips_card + e.tips_cash) })));
-  files['edit_history.csv'] = csv(eds.map((e) => ({ when_utc: e.ts, when_local: localTime(e.ts, tz), who: e.actorName ?? e.actorType, actor_type: e.actorType, entity: e.entity, entity_id: e.entityId, action: e.action, field: e.field, before: e.oldValue, after: e.newValue, reason: e.reason })));
+  files['edit_history.csv'] = csv((await describeEdits(eds, salon, L)).map((e) => ({ when_utc: e.ts, when_local: localTime(e.ts, tz), what_happened: e.text, who: e.actorName ?? e.actorType, actor_type: e.actorType, entity: e.entity, entity_id: e.entityId, action: e.action, field: e.field, before: e.oldValue, after: e.newValue, reason: e.reason })));
   files['rules_in_effect.csv'] = csv(rules.map((r) => ({ jurisdiction: r.jurisdiction, region: r.region, key: r.key, value: r.value, unit: r.unit, effective_from: r.effective_from, effective_to: r.effective_to, source_title: r.source_title, source_url: r.source_url, checked_on: r.checked_on })));
   files['README.txt'] = strToU8(`Audit binder export\nSalon: ${salon.name}\nRange: ${from} to ${to}\nGenerated: ${today}\nFiles: workers, hours_by_day (29 CFR 516.2(a)(7)), tickets (basic records, 516.6), pay_by_week (516.2(a)(6)-(12)), tips_by_month, edit_history, rules_in_effect.\nThis export keeps records and shows arithmetic. It is not legal advice.\n`);
   const zip = zipSync(files, { level: 6 });

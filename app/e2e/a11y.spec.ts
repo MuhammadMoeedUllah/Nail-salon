@@ -32,3 +32,26 @@ test('axe: signed-out pages', async ({ browser }) => {
   await ctx.close();
   expect(problems, problems.join('\n')).toEqual([]);
 });
+
+test('axe: tablet clock board and PIN pad', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/kiosk/pair`);
+  await page.fill('#email', 'owner@example.com');
+  await page.fill('#password', 'password123');
+  await page.fill('#deviceName', 'A11y check');
+  await page.click('button[type=submit]');
+  await page.waitForURL(/\/kiosk$/);
+  const problems: string[] = [];
+  const scan = async (name: string) => {
+    const res = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+    for (const v of res.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'))
+      problems.push(`${name}: ${v.id} (${v.nodes.length}) ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`);
+  };
+  await scan('kiosk board');
+  await page.locator('main button', { hasText: 'Hoa' }).click();
+  await expect(page.locator('text=/Enter your PIN|Nhập mã PIN/')).toBeVisible();
+  await scan('kiosk PIN pad');
+  await ctx.close();
+  expect(problems, problems.join('\n')).toEqual([]);
+});

@@ -10,6 +10,7 @@
   import Switch from '$lib/ui/Switch.svelte';
   import StatusPill from '$lib/ui/StatusPill.svelte';
   import DataTable from '$lib/ui/DataTable.svelte';
+  import { scrollMotion } from '$lib/ui/motion';
   import { IconImport, IconFile, IconDone, IconNext, IconRefresh, IconWarn, IconUsers, IconCheck } from '$lib/ui/icons';
 
   let { data } = $props();
@@ -110,7 +111,7 @@
       result = j;
       // the matches just saved and the recent list come back with the page data
       await invalidateAll();
-      scrollTo({ top: 0, behavior: 'smooth' });
+      scrollTo({ top: 0, behavior: scrollMotion() });
     } catch {
       err = t('something_wrong');
     } finally {

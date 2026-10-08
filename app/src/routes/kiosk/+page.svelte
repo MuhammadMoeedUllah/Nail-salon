@@ -337,7 +337,7 @@
   {#if data.salon.photoOnPunch}
     <div class="hidden w-80 shrink-0 md:block">
       <!-- svelte-ignore a11y_media_has_caption -->
-      <video bind:this={video} autoplay playsinline muted class="aspect-[4/3] w-full rounded-3xl bg-stone-800 object-cover shadow-card"></video>
+      <video bind:this={video} autoplay playsinline muted class="aspect-[4/3] w-full rounded-3xl bg-night object-cover shadow-card"></video>
       <p class="mt-3 flex items-center justify-center gap-2 text-center text-base font-bold {cameraOk ? 'text-ink-muted' : 'text-warn-ink'}">
         <IconCamera size={20} />{cameraOk ? t('kiosk_photo_hint') : t('kiosk_camera_denied')}
       </p>
@@ -507,8 +507,8 @@
   {/if}
 
   {#if dimmed}
-    <button class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-stone-950 text-stone-300" onclick={onTouch}>
-      <span class="text-5xl font-bold tabular-nums text-stone-200">{timeFmt.format(new Date(now))}</span>
+    <button class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black text-white/70" onclick={onTouch}>
+      <span class="text-5xl font-bold tabular-nums text-white/85">{timeFmt.format(new Date(now))}</span>
       <span class="mt-3 text-2xl">{t('kiosk_tap_wake')} · {t2('kiosk_tap_wake')}</span>
     </button>
   {/if}

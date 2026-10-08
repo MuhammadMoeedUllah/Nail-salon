@@ -143,7 +143,7 @@
             <span class="min-w-0 flex-1">
               <span class="block text-base leading-tight font-bold {s.active ? 'text-ink' : 'text-ink-muted'}">{label(s)}</span>
               {#if s.nameVi && s.nameVi !== s.nameEn}<span class="block text-sm text-ink-muted" lang={L === 'vi' ? 'en' : 'vi'}>{L === 'vi' ? s.nameEn : s.nameVi}</span>{/if}
-              <span class="block text-sm text-ink-soft">{s.used ? t('sv_used', { n: s.used }) : t('sv_unused')}</span>
+              <span class="block text-sm text-ink-muted">{s.used ? t('sv_used', { n: s.used }) : t('sv_unused')}</span>
             </span>
             {#if !s.active}<StatusPill kind="neutral" icon={IconHide}>{t('sv_hidden')}</StatusPill>{/if}
             <span class="shrink-0 text-base font-bold tabular-nums">{money(s.defaultPriceCents)}</span>

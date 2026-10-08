@@ -159,7 +159,7 @@ export interface BinderCtx {
   workers: { legalName: string; displayName: string; address: string | null; birthDate: string | null; sex: string | null; occupation: string; payBasis: string; hourlyRateCents: number; dayRateCents: number; commissionPct: number; guaranteeCents: number; hiredOn: string | null; endedOn: string | null; active: boolean }[];
   weeks: { periodStart: string; periodEnd: string; status: string; approvedAt: string | null; paidOn: string | null; lines: WeekLine[]; paid?: Record<string, { cash: number; check: number; payroll: number; on: string | null }> }[];
   punches: { workerName: string; workDate: string; tsIn: string; tsOut: string | null; breakMinutes: number; minutes: number; source: string; voided: boolean }[];
-  edits: { ts: string; actorName: string | null; actorType: string; entity: string; entityId: string; action: string; field: string | null; oldValue: string | null; newValue: string | null; reason: string | null }[];
+  edits: { ts: string; text: string; entity: string; entityId: string; reason: string | null }[];
   rules: { key: string; value: string | number; effective_from: string; source_title: string; source_url: string; checked_on: string; jurisdiction: string; region?: string | null }[];
 }
 
@@ -211,7 +211,8 @@ export function binderPdf(ctx: BinderCtx) {
   // Edit history
   content.push({ text: t('audit_edit_history'), fontSize: 14, bold: true, pageBreak: 'before', margin: [0, 0, 0, 6] });
   content.push({
-    table: { headerRows: 1, widths: ['auto', 'auto', 'auto', 'auto', '*', '*', '*'], body: [[th(t('audit_when')), th(t('audit_who')), th(t('audit_what')), th('field'), th('before'), th('after'), th(t('audit_why'))], ...ctx.edits.map((e) => [td(fmtDateTime(e.ts, ctx.salon.timezone, L)), td(`${e.actorName ?? e.actorType}`), td(`${e.entity} ${e.action}`), td(e.field ?? ''), td(e.oldValue ?? ''), td(e.newValue ?? ''), td(e.reason ?? '')])] },
+    // one readable sentence per change; the raw values are in the CSV export (edits.csv)
+    table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto'], body: [[th(t('audit_when')), th(t('audit_what')), th(t('audit_why')), th('record')], ...ctx.edits.map((e) => [td(fmtDateTime(e.ts, ctx.salon.timezone, L)), td(e.text), td(e.reason ?? ''), td(`${e.entity} ${e.entityId.slice(0, 8)}`, 'left', { color: '#777' })])] },
     layout: 'lightHorizontalLines',
     fontSize: 7
   });

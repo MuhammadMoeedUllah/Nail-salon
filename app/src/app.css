@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
-@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/NotoSans-Regular.ttf') format('truetype'); }
-@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/NotoSans-Bold.ttf') format('truetype'); }
+/* Latin and Vietnamese subsets in WOFF2, about 26 KB each (UX-56). The TrueType files stay for the PDF renderer. */
+@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/NotoSans-Regular.woff2') format('woff2'); unicode-range: U+0000-024F, U+0300-0309, U+0323, U+1EA0-1EF9, U+2000-206F, U+20AB, U+20AC, U+2122, U+2190-2193, U+2212, U+2215, U+2713, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/NotoSans-Bold.woff2') format('woff2'); unicode-range: U+0000-024F, U+0300-0309, U+0323, U+1EA0-1EF9, U+2000-206F, U+20AB, U+20AC, U+2122, U+2190-2193, U+2212, U+2215, U+2713, U+FEFF, U+FFFD; }
 
 /* Design tokens: docs/UX-REVAMP-PLAN.md §3. Components use these names only. */
 @theme {
@@ -41,14 +42,6 @@
   --color-info-ink: #1e40af;
   --color-night: #1c1917;
   --color-disabled: #e7e5e4;
-
-  /* legacy brand scale, removed in UX-59 */
-  --color-brand-50: #f0fdfa;
-  --color-brand-100: #ccfbf1;
-  --color-brand-200: #99f6e4;
-  --color-brand-600: #0d9488;
-  --color-brand-700: #0f766e;
-  --color-brand-800: #115e59;
 
   --shadow-card: 0 1px 2px rgb(28 25 23 / 0.05), 0 1px 1px rgb(28 25 23 / 0.03);
   --shadow-raise: 0 1px 0 rgb(28 25 23 / 0.06), 0 2px 6px -1px rgb(28 25 23 / 0.12);
@@ -133,9 +126,6 @@
 @utility pill-brand { @apply bg-brand-soft text-brand-strong; }
 @utility pill-neutral { @apply bg-canvas text-ink-muted; }
 
-/* Legacy aliases for screens not yet migrated; removed in UX-59. */
-@utility badge { @apply pill; }
-@utility cell-owed { @apply bg-owed-soft font-bold text-owed; }
 
 @utility pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
@@ -191,6 +181,19 @@
 
 @media print {
   .no-print { display: none !important; }
+  a[href="#main"] { display: none !important; }
+  /* statements print black on white; the only colour left is the icon on an owed line (UX-55) */
+  .statement { color: #000 !important; max-width: none !important; }
+  .statement *:not(svg):not(path):not(circle):not(line):not(polyline) { color: inherit !important; background: transparent !important; box-shadow: none !important; }
+  .statement .text-owed svg, .statement .text-owed-ink svg { color: #b91c1c !important; }
+  .statement .bg-brand-soft { border: 1px solid #000; }
+  .statement .table th, .statement .table td { border-color: #bbb !important; }
+  .statement thead { display: table-header-group; }
+  .statement tr, .statement header, .statement section > p { break-inside: avoid; }
+  .statement h1, .statement h2 { break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+  /* a scroll box cannot split across pages, so let the ticket table flow; no frame around the page */
+  .statement .overflow-x-auto { overflow: visible !important; }
+  .card:has(.statement) { border: 0 !important; padding: 0 !important; }
   body.print-card > :not([data-print-clone]) { display: none !important; }
   body.print-card > [data-print-clone] { display: block !important; }
   body { background: white; }

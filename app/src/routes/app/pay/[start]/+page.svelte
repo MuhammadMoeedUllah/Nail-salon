@@ -8,6 +8,7 @@
   import { busy } from '$lib/ui/forms';
   import PageHeader from '$lib/ui/PageHeader.svelte';
   import Menu from '$lib/ui/Menu.svelte';
+  import { scrollMotion } from '$lib/ui/motion';
   import Banner from '$lib/ui/Banner.svelte';
   import KeyNumber from '$lib/ui/KeyNumber.svelte';
   import StatusStepper from '$lib/ui/StatusStepper.svelte';
@@ -58,7 +59,7 @@
 
   $effect(() => {
     const f = focus;
-    if (f) tick().then(() => document.getElementById(`line-${f}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    if (f) tick().then(() => document.getElementById(`line-${f}`)?.scrollIntoView({ block: 'center', behavior: scrollMotion() }));
   });
 </script>
 

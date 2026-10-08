@@ -5,9 +5,10 @@ export type PayPlan = { payBasis: string; hourlyRateCents: number; dayRateCents:
 export const BASES = ['guarantee_or_commission', 'day_rate_plus_commission', 'commission', 'day_rate', 'hourly'] as const;
 
 /** $900 for whole dollars, $15.50 otherwise: easier to read in a sentence. */
+const WHOLE = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const CENTS = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function money(cents: number): string {
-  const whole = cents % 100 === 0;
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 }).format(cents / 100);
+  return (cents % 100 === 0 ? WHOLE : CENTS).format(cents / 100);
 }
 
 /** The pay plan in the salon's words, e.g. "$900 a week or 60% commission, whichever is higher" (UX-43). */

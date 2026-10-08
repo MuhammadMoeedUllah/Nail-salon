@@ -4,6 +4,18 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+// Intl formatters are slow to build and immutable once built: keep one per locale, time zone and style (UX-56).
+const fmtCache = new Map<string, unknown>();
+function cached<T>(key: string, make: () => T): T {
+  let f = fmtCache.get(key) as T | undefined;
+  if (!f) {
+    f = make();
+    fmtCache.set(key, f);
+  }
+  return f;
+}
+const intl = (locale: string) => (locale === 'vi' ? 'vi-VN' : 'en-US');
+
 const dtfCache = new Map<string, Intl.DateTimeFormat>();
 function dtf(tz: string): Intl.DateTimeFormat {
   let f = dtfCache.get(tz);
@@ -100,7 +112,7 @@ export function fmtHours(min: number): string {
 }
 
 export function fmtCents(cents: number, locale: string = 'en-US'): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+  return cached('cents', () => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })).format(cents / 100);
 }
 
 export function fmtRate(centsPerHour: number): string {
@@ -110,50 +122,34 @@ export function fmtRate(centsPerHour: number): string {
 export function fmtDate(date: string, locale: 'en' | 'vi' = 'en'): string {
   const [y, m, d] = date.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
-  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
-    timeZone: 'UTC',
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  }).format(dt);
+  return cached(`date|${locale}`, () => new Intl.DateTimeFormat(intl(locale), { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' })).format(dt);
 }
 
 export function fmtDateLong(date: string, locale: 'en' | 'vi' = 'en'): string {
   const [y, m, d] = date.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
-  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  }).format(dt);
+  return cached(`dlong|${locale}`, () => new Intl.DateTimeFormat(intl(locale), { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' })).format(dt);
 }
 
 export function fmtDateTime(iso: string, tz: string, locale: 'en' | 'vi' = 'en'): string {
-  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
-    timeZone: tz,
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  }).format(new Date(iso));
+  return cached(`dt|${locale}|${tz}`, () => new Intl.DateTimeFormat(intl(locale), { timeZone: tz, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })).format(new Date(iso));
 }
 
 /** Wall-clock time of an instant in the salon's timezone, e.g. "9:06 AM" or "09:06". */
 export function fmtClock(iso: string, tz: string, locale: 'en' | 'vi' = 'en'): string {
-  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+  return cached(`clock|${locale}|${tz}`, () => new Intl.DateTimeFormat(intl(locale), { timeZone: tz, hour: 'numeric', minute: '2-digit' })).format(new Date(iso));
 }
 
 /** Weekday name for a local date, e.g. "Sunday" / "Chủ Nhật". */
 export function fmtWeekday(date: string, locale: 'en' | 'vi' = 'en', style: 'long' | 'short' = 'long'): string {
   const [y, m, d] = date.split('-').map(Number);
-  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { timeZone: 'UTC', weekday: style }).format(new Date(Date.UTC(y, m - 1, d)));
+  return cached(`wd|${locale}|${style}`, () => new Intl.DateTimeFormat(intl(locale), { timeZone: 'UTC', weekday: style })).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 /** "2 min. ago", "3 hr. ago", "yesterday" in the reader's language. */
 export function fmtAgo(iso: string, locale: 'en' | 'vi' = 'en', now: number = Date.now()): string {
   const s = Math.round((new Date(iso).getTime() - now) / 1000);
-  const rtf = new Intl.RelativeTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { numeric: 'auto', style: 'short' });
+  const rtf = cached(`ago|${locale}`, () => new Intl.RelativeTimeFormat(intl(locale), { numeric: 'auto', style: 'short' }));
   const a = Math.abs(s);
   if (a < 60) return rtf.format(0, 'second');
   if (a < 3600) return rtf.format(Math.round(s / 60), 'minute');
@@ -163,7 +159,7 @@ export function fmtAgo(iso: string, locale: 'en' | 'vi' = 'en', now: number = Da
 
 /** "Jan 1, 2026" / "1 thg 1, 2026": a calendar date with the year, no weekday. */
 export function fmtDateYear(date: string, locale: 'en' | 'vi' = 'en'): string {
-  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(date + 'T12:00:00Z'));
+  return cached(`dy|${locale}`, () => new Intl.DateTimeFormat(intl(locale), { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })).format(new Date(date + 'T12:00:00Z'));
 }
 
 /** A wall-clock "HH:MM" as people say it: "7:30 PM" in English, "19:30" in Vietnamese. */

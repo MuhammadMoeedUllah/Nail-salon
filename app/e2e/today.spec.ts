@@ -25,6 +25,7 @@ test('void a ticket with a one-tap reason, then undo it', async ({ page }) => {
   await login(page);
   await page.goto(`${BASE}/app/today`);
   const hoa = page.locator('article[id^=tech-]', { hasText: 'Hoa' });
+  await expect(hoa.locator('button', { hasText: /^\s*(Void|Hủy phiếu)\s*$/ }).first()).toBeVisible(); // cards open once the page is interactive
   const count = await hoa.locator('button', { hasText: /^\s*(Void|Hủy phiếu)\s*$/ }).count();
   await hoa.locator('button', { hasText: /^\s*(Void|Hủy phiếu)\s*$/ }).first().click();
   const sheet = page.locator('[role=dialog]');
@@ -96,4 +97,24 @@ test('fix a shift with reason chips, then undo the fix', async ({ page }) => {
   await expect(hoa.locator('button', { hasText: /Clock out now|Ra ca ngay/ })).toHaveCount(0);
   await page.locator('[data-testid=toast] button', { hasText: /Undo|Hoàn tác/ }).click();
   await expect(hoa.locator('button', { hasText: /Clock out now|Ra ca ngay/ })).toHaveCount(1);
+});
+
+test('the actions menu works from the keyboard and opens a sheet', async ({ page }) => {
+  await login(page);
+  await page.goto(`${BASE}/app/today`);
+  const trigger = page.getByRole('button', { name: 'More actions' });
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  const items = page.getByRole('menuitem');
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.first()).toBeFocused(); // wraps around
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await page.getByRole('menuitem', { name: 'Add hours' }).click();
+  await expect(page.locator('[role=dialog]')).toBeVisible();
 });
