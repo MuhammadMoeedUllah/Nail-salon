@@ -118,6 +118,7 @@ See `app/src/lib/server/db/schema.ts`. Tables: salons, users, sessions, devices,
 - One Node process, one SQLite file, one photo directory. Dockerfile in `app/`.
 - Primary: Fly.io, one shared-cpu machine (512 MB is enough without Chromium) in `ewr` for the New York launch, a 10 GB volume mounted at `/data`, auto-stop off so the kiosk never waits for a cold start. Litestream replicates the database to Cloudflare R2. Estimated under $15 a month at 10 salons (research 05).
 - Fallback: a Hetzner VPS with Coolify or Kamal; the Dockerfile is the same.
+- Not Vercel: its serverless functions have no persistent disk, so the SQLite file and photos cannot live there. Moving to Vercel would mean adapter-vercel, a hosted database such as Turso and external photo storage (see `app/README.md`).
 - Email for sign-in help and statement links: Resend free tier. SMS deferred until a pilot asks.
 - Billing: Stripe Checkout plus the Customer Portal, or the storefront's merchant of record; the app itself needs no billing code at pilot stage.
 - Environment: `DATABASE_URL`, `PHOTO_DIR`, `ORIGIN`, `APP_SECRET`, `ALLOW_SIGNUP`.
