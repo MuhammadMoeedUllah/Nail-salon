@@ -1,0 +1,8 @@
+# Continuous SQLite replication. Set LITESTREAM_REPLICA_URL (s3://bucket/path or an R2 URL),
+# LITESTREAM_ACCESS_KEY_ID and LITESTREAM_SECRET_ACCESS_KEY in the environment to enable.
+dbs:
+  - path: ${DATABASE_URL}
+    replicas:
+      - url: ${LITESTREAM_REPLICA_URL}
+        retention: 720h
+        sync-interval: 10s

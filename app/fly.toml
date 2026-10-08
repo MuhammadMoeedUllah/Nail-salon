@@ -1,0 +1,44 @@
+# Run these from the app/ folder:
+#   fly launch --no-deploy --copy-config --name <your-app-name>
+#   fly volumes create data --size 10 --region ewr
+#   fly secrets set APP_SECRET=$(openssl rand -base64 32)
+#   fly deploy
+app = "salon-pay-records"
+primary_region = "ewr"
+
+[build]
+
+[env]
+  PORT = "3000"
+  DATABASE_URL = "/data/salon.db"
+  PHOTO_DIR = "/data/photos"
+  # ORIGIN is not set on purpose: behind Fly's HTTPS proxy the server uses https://<Host header>,
+  # which matches whatever app name or custom domain you choose.
+  ALLOW_SIGNUP = "1"
+
+[[mounts]]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/login"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
