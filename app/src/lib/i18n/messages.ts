@@ -3,6 +3,7 @@
 import * as shell from './ux-shell';
 import * as home from './ux-home';
 import * as kiosk from './ux-kiosk';
+import * as today from './ux-today';
 
 export type Locale = 'en' | 'vi';
 export const LOCALES: Locale[] = ['en', 'vi'];
@@ -283,7 +284,7 @@ const baseEn = {
   import_summary_unsupported: 'This file is a period summary (one row per technician), not a list of sales. Export the detailed report instead: Square Items Detail or Transactions, Fresha Commission activity, Vagaro Transaction List.'
 } as const;
 
-const en = { ...baseEn, ...shell.en, ...home.en, ...kiosk.en };
+const en = { ...baseEn, ...shell.en, ...home.en, ...kiosk.en, ...today.en };
 export type MessageKey = keyof typeof en;
 
 const baseVi: Record<keyof typeof baseEn, string> = {
@@ -553,7 +554,7 @@ const baseVi: Record<keyof typeof baseEn, string> = {
   repeat_last: 'Lặp lại phiếu trước',
   import_summary_unsupported: 'File này là bản tổng kết theo kỳ (mỗi thợ một dòng), không phải danh sách phiếu. Hãy xuất báo cáo chi tiết: Square Items Detail hoặc Transactions, Fresha Commission activity, Vagaro Transaction List.'
 };
-const vi: Record<MessageKey, string> = { ...baseVi, ...shell.vi, ...home.vi, ...kiosk.vi };
+const vi: Record<MessageKey, string> = { ...baseVi, ...shell.vi, ...home.vi, ...kiosk.vi, ...today.vi };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, vi };
 

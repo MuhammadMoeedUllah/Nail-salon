@@ -16,21 +16,28 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await expect(page.locator('h1')).toContainText(/Today|Hôm nay/);
   await page.screenshot({ path: `${SHOTS}/01-today.png`, fullPage: true });
 
-  // add a ticket in three taps: technician chip, service tile, tip button, then add
-  await page.locator('aside button', { hasText: 'Linh' }).click();
-  await page.locator('aside button', { hasText: 'Gel manicure' }).click();
-  await expect(page.locator('#tk-p')).toHaveValue('45.00');
-  await page.locator('aside button', { hasText: /^5$/ }).first().click();
-  await page.click('aside button[type=submit]');
-  await expect(page.locator('td', { hasText: 'Gel manicure' }).first()).toBeVisible();
-  await expect(page.locator('a', { hasText: /Open pay run|Mở bảng tính lương/ })).toBeVisible();
+  // add a ticket in three taps: technician, service tile, tip chip, then add (the builder pane is open from 1024 px)
+  const builder = page.locator('section[aria-labelledby=builder-h]');
+  await builder.locator('button', { hasText: 'Linh' }).click();
+  await builder.locator('button', { hasText: 'Gel manicure' }).click();
+  await expect(page.locator('#tbp-price')).toHaveValue('45.00');
+  await builder.locator('button', { hasText: /^\$5$/ }).click();
+  await builder.locator('button[type=submit]').click();
+  await expect(builder.locator('[role=status]', { hasText: /Added: Gel manicure|Đã thêm: Gel tay/ })).toBeVisible();
+  const linh = page.locator('#tech-' + (await page.locator('article[id^=tech-]').first().getAttribute('id'))!.slice(5));
+  await expect(linh.locator('li', { hasText: 'Gel manicure' }).first()).toBeVisible();
   // repeat last in one tap
-  const before = await page.locator('td', { hasText: 'Gel manicure' }).count();
-  await page.locator('button', { hasText: /Repeat last|Lặp lại/ }).click();
-  await expect(page.locator('td', { hasText: 'Gel manicure' })).toHaveCount(before + 1);
-  // card tips handed over in cash, then undo
-  await page.locator('button', { hasText: /Card tips handed over in cash|Đã đưa tip thẻ/ }).first().click();
-  await expect(page.locator('button', { hasText: /Card tips paid out in cash|Tip thẻ đã trả tiền mặt/ }).first()).toBeVisible();
+  const before = await linh.locator('li', { hasText: 'Gel manicure' }).count();
+  await builder.locator('button', { hasText: /Repeat|Lặp lại/ }).click();
+  await expect(linh.locator('li', { hasText: 'Gel manicure' })).toHaveCount(before + 1);
+  // undo the repeat from the builder
+  await builder.locator('button', { hasText: /^\s*(Undo|Hoàn tác)\s*$/ }).click();
+  await expect(linh.locator('li', { hasText: 'Gel manicure' })).toHaveCount(before);
+  // card tips handed over in cash, with Undo in the toast
+  await linh.locator('button', { hasText: /Card tips handed over in cash|Đã đưa tip thẻ/ }).click();
+  await expect(linh.locator('button', { hasText: /Card tips paid out in cash|Tip thẻ đã trả tiền mặt/ })).toBeVisible();
+  await page.locator('[data-testid=toast] button', { hasText: /Undo|Hoàn tác/ }).click();
+  await expect(linh.locator('button', { hasText: /Card tips handed over in cash|Đã đưa tip thẻ/ })).toBeVisible();
 
   // pay runs list
   await page.goto(`${BASE}/app/pay`);

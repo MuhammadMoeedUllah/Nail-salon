@@ -28,6 +28,7 @@ export async function setLocale(page: Page, l: 'en' | 'vi', next = '/app/home') 
 /** Owner routes that have been redesigned; the a11y, target and visual specs walk these. */
 export const OWNER_ROUTES: { name: string; path: string }[] = [
   { name: 'home', path: '/app/home' },
+  { name: 'today', path: '/app/today' },
   { name: 'more', path: '/app/more' }
 ];
 
