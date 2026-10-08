@@ -1,4 +1,4 @@
 import { redirect } from '@sveltejs/kit';
 export const load = () => {
-  throw redirect(303, '/app/today');
+  throw redirect(303, '/app/home');
 };

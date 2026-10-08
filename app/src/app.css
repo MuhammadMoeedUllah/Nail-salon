@@ -3,44 +3,157 @@
 @font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/NotoSans-Regular.ttf') format('truetype'); }
 @font-face { font-family: 'Noto Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/NotoSans-Bold.ttf') format('truetype'); }
 
+/* Design tokens: docs/UX-REVAMP-PLAN.md §3. Components use these names only. */
 @theme {
   --font-sans: 'Noto Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* surfaces and ink */
+  --color-canvas: #f5f5f4;
+  --color-surface: #ffffff;
+  --color-sunken: #fafaf9;
+  --color-ink: #1c1917;
+  --color-ink-muted: #57534e; /* 7.6:1 on white, 7.0:1 on canvas */
+  --color-ink-soft: #78716c; /* 4.8:1, on white only */
+  --color-line: #e7e5e4; /* decorative rules */
+  --color-line-strong: #8a8580; /* input and outline borders, 3.6:1 */
+
+  /* brand */
+  --color-brand: #0f766e;
+  --color-brand-strong: #115e59;
+  --color-brand-soft: #f0fdfa;
+  --color-brand-tint: #ccfbf1;
+  --color-focus: #0d9488;
+
+  /* status roles: colour + icon + word, never colour alone */
+  --color-ok: #15803d;
+  --color-ok-soft: #dcfce7;
+  --color-ok-ink: #166534;
+  --color-warn: #b45309;
+  --color-warn-soft: #fef3c7;
+  --color-warn-ink: #92400e;
+  --color-owed: #b91c1c;
+  --color-owed-soft: #fef2f2;
+  --color-owed-ink: #991b1b;
+  --color-danger: #dc2626;
+  --color-danger-strong: #b91c1c;
+  --color-info: #1d4ed8;
+  --color-info-soft: #dbeafe;
+  --color-info-ink: #1e40af;
+  --color-night: #1c1917;
+  --color-disabled: #e7e5e4;
+
+  /* legacy brand scale, removed in UX-59 */
   --color-brand-50: #f0fdfa;
   --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
   --color-brand-600: #0d9488;
   --color-brand-700: #0f766e;
   --color-brand-800: #115e59;
+
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.05), 0 1px 1px rgb(28 25 23 / 0.03);
+  --shadow-raise: 0 1px 0 rgb(28 25 23 / 0.06), 0 2px 6px -1px rgb(28 25 23 / 0.12);
+  --shadow-float: 0 10px 30px -8px rgb(28 25 23 / 0.25), 0 2px 6px rgb(28 25 23 / 0.08);
+
+  --animate-shake: shake 0.32s ease-in-out;
+  --animate-pop: pop 0.18s ease-out;
+  --animate-fade-up: fade-up 0.18s ease-out;
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-10px); }
+    40%, 80% { transform: translateX(10px); }
+  }
+  @keyframes pop {
+    from { transform: scale(0.96); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  @keyframes fade-up {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
 }
 
-html, body { height: 100%; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 
-/* Large touch targets for the shared tablet */
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-variant-numeric: tabular-nums;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  a, button, label, summary, [role='button'] { touch-action: manipulation; }
+  [hidden] { display: none !important; }
+  /* default button and field size; zero specificity so size utilities win */
+  :where(.btn, .btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-night) { min-height: 3rem; padding-inline: 1rem; font-size: 1rem; }
+  :where(.input) { min-height: 3rem; }
+  :where(.card) { padding: 1.25rem; }
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+}
+
+/* Buttons: class="btn-primary" (variants include the base; size with utilities such as min-h-14 px-5 text-lg). */
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-semibold shadow-sm transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
-  min-height: 48px;
+  @apply relative inline-flex items-center justify-center gap-2 rounded-xl text-center font-bold leading-snug select-none transition-[background-color,border-color,color,box-shadow,transform] duration-100 active:translate-y-px;
+  -webkit-user-select: none;
+  &:disabled, &[aria-disabled='true'] { @apply cursor-not-allowed border-transparent bg-disabled text-ink-muted shadow-none; transform: none; }
+  &[data-pending] { cursor: progress; }
+  &[data-pending] > svg:first-child { display: none; }
+  &[data-pending]::before {
+    content: ''; flex: none; width: 1.25rem; height: 1.25rem; border-radius: 9999px;
+    border: 2.5px solid currentColor; border-right-color: transparent; animation: btn-spin 0.7s linear infinite;
+  }
 }
-@utility btn-primary { @apply btn bg-brand-700 text-white hover:bg-brand-800; }
-@utility btn-secondary { @apply btn bg-white text-stone-800 ring-1 ring-stone-300 hover:bg-stone-100; }
-@utility btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
-@utility btn-ghost { @apply btn bg-transparent text-stone-700 shadow-none hover:bg-stone-100; }
+@utility btn-primary { @apply btn bg-brand text-white shadow-raise hover:bg-brand-strong active:bg-brand-strong; }
+@utility btn-secondary { @apply btn border border-line-strong bg-surface text-ink hover:bg-sunken active:bg-canvas; }
+@utility btn-ghost { @apply btn text-brand-strong hover:bg-brand-soft active:bg-brand-tint; }
+@utility btn-danger { @apply btn bg-danger text-white shadow-raise hover:bg-danger-strong active:bg-danger-strong; }
+@utility btn-night { @apply btn bg-night text-white shadow-raise hover:bg-stone-800 active:bg-stone-800; }
+
+/* Fields */
 @utility input {
-  @apply w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-base shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100;
-  min-height: 48px;
+  @apply block w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2 text-base text-ink transition-colors placeholder:text-ink-soft focus:border-brand disabled:bg-sunken disabled:text-ink-muted;
 }
-@utility label { @apply mb-1 block text-sm font-medium text-stone-700; }
-@utility card { @apply rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200; }
-@utility badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
-@utility cell-owed { @apply bg-red-50 font-semibold text-red-700; }
+@utility label { @apply mb-1.5 block text-sm font-bold text-ink-muted; }
+@utility hint { @apply mt-1.5 text-sm text-ink-muted; }
+
+/* Surfaces and text roles */
+@utility card { @apply rounded-2xl border border-line bg-surface shadow-card; }
+@utility eyebrow { @apply text-sm font-bold text-ink-muted; }
+@utility num { @apply whitespace-nowrap text-right tabular-nums; }
+
+/* Status pills: always pair with an icon or a word */
+@utility pill { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm leading-tight font-bold whitespace-nowrap; }
+@utility pill-ok { @apply bg-ok-soft text-ok-ink; }
+@utility pill-warn { @apply bg-warn-soft text-warn-ink; }
+@utility pill-owed { @apply bg-owed-soft text-owed-ink; }
+@utility pill-info { @apply bg-info-soft text-info-ink; }
+@utility pill-brand { @apply bg-brand-soft text-brand-strong; }
+@utility pill-neutral { @apply bg-canvas text-ink-muted; }
+
+/* Legacy aliases for screens not yet migrated; removed in UX-59. */
+@utility badge { @apply pill; }
+@utility cell-owed { @apply bg-owed-soft font-bold text-owed; }
+
+@utility pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
 @layer components {
-  .table { @apply w-full border-collapse text-sm; }
-  .table th { @apply border-b border-stone-200 bg-stone-50 px-3 py-2 text-left font-semibold text-stone-600; }
-  .table td { @apply border-b border-stone-100 px-3 py-2 align-top; }
+  .table { @apply w-full border-separate border-spacing-0 text-base; }
+  .table th { @apply border-b border-line bg-sunken px-3 py-2.5 text-left text-sm font-bold text-ink-muted; }
+  .table td { @apply border-b border-line px-3 py-3 align-middle; }
+  .table tbody tr:last-child td { @apply border-b-0; }
+  .table .num { @apply whitespace-nowrap text-right tabular-nums; }
+  .table-sticky th { @apply sticky top-0 z-[1]; }
+  .table-pin th:first-child, .table-pin td:first-child { @apply sticky left-0 z-[2] bg-surface; }
+  .table-pin th:first-child { @apply z-[3] bg-sunken; }
+  .table-compact td { @apply py-2; }
 }
 
 @media print {
   .no-print { display: none !important; }
   body { background: white; }
-  .card { box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+  .card { box-shadow: none; border-color: #d6d3d1; }
   @page { margin: 14mm; }
 }

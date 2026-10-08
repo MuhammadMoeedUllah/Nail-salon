@@ -138,3 +138,14 @@ export function fmtDateTime(iso: string, tz: string, locale: 'en' | 'vi' = 'en')
     minute: '2-digit'
   }).format(new Date(iso));
 }
+
+/** Wall-clock time of an instant in the salon's timezone, e.g. "9:06 AM" or "09:06". */
+export function fmtClock(iso: string, tz: string, locale: 'en' | 'vi' = 'en'): string {
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+}
+
+/** Weekday name for a local date, e.g. "Sunday" / "Chủ Nhật". */
+export function fmtWeekday(date: string, locale: 'en' | 'vi' = 'en', style: 'long' | 'short' = 'long'): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { timeZone: 'UTC', weekday: style }).format(new Date(Date.UTC(y, m - 1, d)));
+}

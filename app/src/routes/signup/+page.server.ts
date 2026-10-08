@@ -16,7 +16,7 @@ async function allowed() {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (locals.user) throw redirect(303, '/app/today');
+  if (locals.user) throw redirect(303, '/app/home');
   if (!(await allowed())) throw redirect(303, '/login');
   return { locale: locals.locale, states: STATES };
 };
@@ -59,6 +59,6 @@ export const actions: Actions = {
       throw e;
     }
     await createSession(userId, cookies);
-    throw redirect(303, '/app/workers?welcome=1');
+    throw redirect(303, '/app/home');
   }
 };

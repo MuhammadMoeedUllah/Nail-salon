@@ -7,7 +7,7 @@ import { createSession, verifyPassword } from '$lib/server/auth';
 import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (locals.user) throw redirect(303, '/app/today');
+  if (locals.user) throw redirect(303, '/app/home');
   const n = (await db.select({ c: count() }).from(users).get())?.c ?? 0;
   return { locale: locals.locale, canSignup: env.ALLOW_SIGNUP === '1' || n === 0, hasDevice: !!locals.device };
 };
@@ -32,6 +32,6 @@ export const actions: Actions = {
     attempts.delete(key);
     await createSession(user.id, cookies);
     const next = url.searchParams.get('next');
-    throw redirect(303, next && next.startsWith('/') ? next : '/app/today');
+    throw redirect(303, next && next.startsWith('/') ? next : '/app/home');
   }
 };

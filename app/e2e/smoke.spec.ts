@@ -10,7 +10,9 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await page.fill('#email', 'owner@example.com');
   await page.fill('#password', 'password123');
   await page.click('button[type=submit]');
-  await page.waitForURL(/\/app\/today/);
+  await page.waitForURL(/\/app\/home/);
+  await expect(page.locator('h1')).toContainText(/Hello|Chào/);
+  await page.goto(`${BASE}/app/today`);
   await expect(page.locator('h1')).toContainText(/Today|Hôm nay/);
   await page.screenshot({ path: `${SHOTS}/01-today.png`, fullPage: true });
 
