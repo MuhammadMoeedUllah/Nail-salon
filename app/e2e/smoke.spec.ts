@@ -160,3 +160,45 @@ test('tablet pairs and a technician clocks in and out with a PIN', async ({ brow
   await expect(page.locator('text=/Clocked out at|Đã ra ca lúc/')).toBeVisible();
   await ctx.close();
 });
+
+test('a technician who forgot to clock out confirms the time at the tablet', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/kiosk/pair`);
+  await page.fill('#email', 'owner@example.com');
+  await page.fill('#password', 'password123');
+  await page.click('button[type=submit]');
+  await page.waitForURL(/\/kiosk$/);
+  const kim = page.locator('main button', { hasText: 'Kim' });
+  test.skip(!(await kim.textContent())?.match(/Not clocked out|Chưa ra ca/), 'no forgotten shift seeded (today is the first day of the week)');
+  await kim.click();
+  for (const d of ['4', '4', '4', '4']) await page.locator('main button', { hasText: new RegExp(`^${d}$`) }).click();
+  await expect(page.locator('text=/You did not clock out|Bạn chưa ra ca/')).toBeVisible();
+  await page.locator('button', { hasText: /Yes, I left at|Đúng, tôi về lúc/ }).click();
+  // auto clock-in follows, and the done screen confirms both
+  await expect(page.locator('text=/Clocked in at|Đã vào ca lúc/')).toBeVisible();
+  await expect(page.locator('text=/Saved: you left at|Đã lưu: bạn về lúc/')).toBeVisible();
+  await ctx.close();
+});
+
+
+test('offline punches queue on the tablet and send when Wi-Fi returns', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/kiosk/pair`);
+  await page.fill('#email', 'owner@example.com');
+  await page.fill('#password', 'password123');
+  await page.click('button[type=submit]');
+  await page.waitForURL(/\/kiosk$/);
+  await ctx.setOffline(true);
+  await page.locator('main button', { hasText: 'Jenny' }).click();
+  for (const d of ['5', '5', '5', '5']) await page.locator('main button', { hasText: new RegExp(`^${d}$`) }).click();
+  // the PIN cannot be checked offline, so the choice is offered and the punch is queued
+  await page.locator('button', { hasText: /^.*(Clock out|Ra ca).*$/ }).first().click();
+  await expect(page.locator('[role=status]', { hasText: /Offline|Mất mạng/ }).first()).toBeVisible();
+  await expect(page.locator('text=/1 punch|1 lần/').first()).toBeVisible();
+  await ctx.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.locator('text=/waiting to send|đang chờ gửi/')).toHaveCount(0, { timeout: 10000 });
+  await ctx.close();
+});

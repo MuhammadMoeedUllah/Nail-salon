@@ -102,6 +102,10 @@ async function main() {
       }
     }
   }
+  // Kim forgot to clock out on her last shift this week (only inside the current week, so past weeks stay approvable)
+  sqlite
+    .prepare('update punches set ts_out = null where id = (select id from punches where worker_id = ? and work_date >= ? and work_date < ? order by work_date desc limit 1)')
+    .run(workerIds[3], thisMonday, today);
   // Today: three technicians already clocked in with a ticket or two; Linh is still out so the tablet demo can clock her in.
   const now = Date.now();
   for (const [k, i] of [1, 2, 4].entries()) {
