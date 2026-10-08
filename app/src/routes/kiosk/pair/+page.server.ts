@@ -22,8 +22,8 @@ export const actions: Actions = {
       const email = String(form.get('email') ?? '').trim().toLowerCase();
       const password = String(form.get('password') ?? '');
       const u = await db.select().from(users).where(eq(users.email, email)).get();
-      if (!u || !(await verifyPassword(u.passwordHash, password))) return fail(400, { error: 'Wrong email or password.' });
-      if (u.role === 'bookkeeper') return fail(403, { error: 'Only the owner or a manager can pair a tablet.' });
+      if (!u || !(await verifyPassword(u.passwordHash, password))) return fail(400, { error: 'lg_wrong' });
+      if (u.role === 'bookkeeper') return fail(403, { error: 'pr_role' });
       user = u;
     }
     const device = await pairDevice(user.salonId, name, user.id, cookies);

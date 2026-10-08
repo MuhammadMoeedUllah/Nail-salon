@@ -7,6 +7,7 @@ import { verifyShare } from '$lib/server/auth';
 import { hydrateLine } from '$lib/server/payrun';
 import { statementPdf } from '$lib/server/pdf';
 import { localDate, nowIso } from '$lib/time';
+import { statementLangs } from '$lib/statementLang';
 
 export const GET: RequestHandler = async ({ params, url }) => {
   const id = verifyShare(params.token);
@@ -16,10 +17,10 @@ export const GET: RequestHandler = async ({ params, url }) => {
   const run = (await db.select().from(payRuns).where(eq(payRuns.id, line.payRunId)).get())!;
   const salon = (await db.select().from(salons).where(eq(salons.id, run.salonId)).get())!;
   const h = hydrateLine(line);
-  const q = url.searchParams.get('lang');
-  const locale = q === 'vi' || q === 'en' ? q : (h.worker.locale as 'en' | 'vi');
+  const { locale, second } = statementLangs(url.searchParams.get('lang'), h.worker.locale as 'en' | 'vi');
   const pdf = await statementPdf(h, {
     locale,
+    second,
     salon: { name: salon.name, address: salon.address, licenseNo: salon.licenseNo },
     tz: salon.timezone,
     period: { start: run.periodStart, end: run.periodEnd },

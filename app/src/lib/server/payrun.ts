@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, isNull, inArray } from 'drizzle-orm';
+import { and, eq, gte, lte, isNull, inArray, desc } from 'drizzle-orm';
 import { db } from './db';
 import { workers, tickets, payRuns, payLines, type Salon, type Worker, type Ticket, type PayRun, type PayLine } from './db/schema';
 import { punchesInRange, punchMinutes } from './punches';
@@ -200,7 +200,7 @@ export async function markPaid(
 }
 
 /** Lines of an approved run, hydrated from the frozen breakdown. */
-export function hydrateLine(line: PayLine): WeekLine & { lineId: string; paid: { cash: number; check: number; payroll: number; on: string | null }; version: number } {
+export function hydrateLine(line: PayLine): WeekLine & { lineId: string; paid: { cash: number; check: number; payroll: number; on: string | null }; version: number; sentAt: string | null } {
   const b = JSON.parse(line.breakdown ?? '{}');
   return {
     lineId: line.id,
@@ -210,7 +210,8 @@ export function hydrateLine(line: PayLine): WeekLine & { lineId: string; paid: {
     tickets: b.tickets,
     owedCents: complianceOwedCents(b.result),
     paid: { cash: line.paidCashCents, check: line.paidCheckCents, payroll: line.paidPayrollCents, on: line.paidOn },
-    version: line.version
+    version: line.version,
+    sentAt: line.statementSentAt ?? null
   };
 }
 
@@ -239,3 +240,17 @@ export async function workerTicketsInRange(salonId: string, from: string, to: st
 }
 
 export { inArray };
+
+/** How each technician was paid in the most recent paid week before `periodStart`, to pre-fill the next one (UX-38). */
+export async function lastPaidMethods(salonId: string, periodStart: string): Promise<Record<string, 'check' | 'cash' | 'payroll' | 'split'>> {
+  const runs = await db.select().from(payRuns).where(and(eq(payRuns.salonId, salonId), eq(payRuns.status, 'paid'))).orderBy(desc(payRuns.periodStart));
+  const prev = runs.find((r) => r.periodStart < periodStart);
+  if (!prev) return {};
+  const lines = await db.select().from(payLines).where(eq(payLines.payRunId, prev.id));
+  const out: Record<string, 'check' | 'cash' | 'payroll' | 'split'> = {};
+  for (const l of lines) {
+    const used = [l.paidCashCents > 0 && 'cash', l.paidCheckCents > 0 && 'check', l.paidPayrollCents > 0 && 'payroll'].filter(Boolean) as ('cash' | 'check' | 'payroll')[];
+    out[l.workerId] = used.length > 1 ? 'split' : (used[0] ?? 'check');
+  }
+  return out;
+}

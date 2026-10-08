@@ -67,16 +67,17 @@ async function main() {
     });
   }
 
-  // Two full weeks before the current week (Mon-Sun), 6 days a week, 9.5-10h days
-  const today = new Date().toISOString().slice(0, 10);
+  // Two full weeks before the current week (Mon-Sun), 6 days a week, 9.5-10h days, then the current week up to today
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
   const dow = new Date(today + 'T00:00:00Z').getUTCDay();
   const thisMonday = addDays(today, -((dow + 6) % 7));
   let seed = 7;
   const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-  for (let wk = 2; wk >= 1; wk--) {
+  for (let wk = 2; wk >= 0; wk--) {
     const monday = addDays(thisMonday, -7 * wk);
     for (let d = 0; d < 7; d++) {
       const date = addDays(monday, d);
+      if (date >= today) break; // the current week only up to yesterday; today is seeded below
       const isSunday = d === 6;
       for (const [i, t] of techs.entries()) {
         if (isSunday && i % 2 === 0) continue; // half the team is off Sunday
@@ -99,6 +100,23 @@ async function main() {
           });
         }
       }
+    }
+  }
+  // Kim forgot to clock out on her last shift this week (only inside the current week, so past weeks stay approvable)
+  sqlite
+    .prepare('update punches set ts_out = null where id = (select id from punches where worker_id = ? and work_date >= ? and work_date < ? order by work_date desc limit 1)')
+    .run(workerIds[3], thisMonday, today);
+  // Today: three technicians already clocked in with a ticket or two; Linh is still out so the tablet demo can clock her in.
+  const now = Date.now();
+  for (const [k, i] of [1, 2, 4].entries()) {
+    const tIn = new Date(Math.floor((now - (150 - k * 40) * 60000) / 300000) * 300000).toISOString();
+    await db.insert(s.punches).values({ id: id(), salonId, workerId: workerIds[i], workDate: today, tsIn: tIn, source: 'tablet' });
+    for (let j = 0; j <= k % 2; j++) {
+      const svc = svcs[(i + j) % svcs.length];
+      await db.insert(s.tickets).values({
+        id: id(), salonId, workerId: workerIds[i], workDate: today, ts: new Date(now - (20 + j * 35) * 60000).toISOString(),
+        ticketNo: String(2000 + i * 10 + j), serviceName: svc[0], priceCents: svc[2], tipCardCents: j ? 0 : 500, tipCashCents: j ? 300 : 0, paymentMethod: j ? 'cash' : 'card', source: 'manual', createdByUserId: ownerId
+      });
     }
   }
   await db.insert(s.edits).values({ id: id(), salonId, entity: 'salon', entityId: salonId, action: 'create', actorType: 'system', actorName: 'seed', newValue: 'demo data' });

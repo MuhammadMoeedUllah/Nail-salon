@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireUser } from '$lib/server/guard';
-import { computeSalonWeek, getRun, hydrateLine, approveRun, reopenRun, markPaid, type WeekLine } from '$lib/server/payrun';
+import { computeSalonWeek, getRun, hydrateLine, approveRun, reopenRun, markPaid, lastPaidMethods, type WeekLine } from '$lib/server/payrun';
 import { weekStart, weekEnd, localDate, nowIso } from '$lib/time';
 import { parseDollars } from '$lib/money';
 import { signShare } from '$lib/server/auth';
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async (event) => {
   const aligned = weekStart(start, salon.workweekStart);
   if (aligned !== start) throw redirect(303, `/app/pay/${aligned}`);
   const run = await getRun(salon.id, start);
-  let lines: (WeekLine & { lineId?: string; paid?: { cash: number; check: number; payroll: number; on: string | null }; version?: number })[];
+  let lines: (WeekLine & { lineId?: string; paid?: { cash: number; check: number; payroll: number; on: string | null }; version?: number; sentAt?: string | null })[];
   let rules;
   if (run && run.status !== 'draft') {
     lines = run.lines.map(hydrateLine);
@@ -35,6 +35,8 @@ export const load: PageServerLoad = async (event) => {
     paidOn: run?.paidOn ?? null,
     isCurrentWeek: weekStart(today, salon.workweekStart) === start,
     today,
+    tz: salon.timezone,
+    lastMethods: run && run.status === 'approved' ? await lastPaidMethods(salon.id, start) : {},
     rules,
     lines: lines.map((l) => ({
       ...l,
@@ -55,6 +57,9 @@ export const actions: Actions = {
   approve: async (event) => {
     const { salon, user } = requireUser(event);
     if (user.role === 'bookkeeper') return fail(403, { error: 'owner_only' });
+    // hours are unknown while a shift has no clock-out (UX-35)
+    const c = await computeSalonWeek(salon, event.params.start);
+    if (c.lines.some((l) => l.result.flags.includes('OPEN_PUNCH'))) return fail(400, { error: 'open_punch' });
     await approveRun(salon, event.params.start, { type: 'user', id: user.id, name: user.name }, user.id);
     return { ok: true };
   },

@@ -10,25 +10,34 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await page.fill('#email', 'owner@example.com');
   await page.fill('#password', 'password123');
   await page.click('button[type=submit]');
-  await page.waitForURL(/\/app\/today/);
+  await page.waitForURL(/\/app\/home/);
+  await expect(page.locator('h1')).toContainText(/Hello|Chào/);
+  await page.goto(`${BASE}/app/today`);
   await expect(page.locator('h1')).toContainText(/Today|Hôm nay/);
   await page.screenshot({ path: `${SHOTS}/01-today.png`, fullPage: true });
 
-  // add a ticket in three taps: technician chip, service tile, tip button, then add
-  await page.locator('aside button', { hasText: 'Linh' }).click();
-  await page.locator('aside button', { hasText: 'Gel manicure' }).click();
-  await expect(page.locator('#tk-p')).toHaveValue('45.00');
-  await page.locator('aside button', { hasText: /^5$/ }).first().click();
-  await page.click('aside button[type=submit]');
-  await expect(page.locator('td', { hasText: 'Gel manicure' }).first()).toBeVisible();
-  await expect(page.locator('a', { hasText: /Open pay run|Mở bảng tính lương/ })).toBeVisible();
+  // add a ticket in three taps: technician, service tile, tip chip, then add (the builder pane is open from 1024 px)
+  const builder = page.locator('section[aria-labelledby=builder-h]');
+  await builder.locator('button', { hasText: 'Linh' }).click();
+  await builder.locator('button', { hasText: 'Gel manicure' }).click();
+  await expect(page.locator('#tbp-price')).toHaveValue('45.00');
+  await builder.locator('button', { hasText: /^\$5$/ }).click();
+  await builder.locator('button[type=submit]').click();
+  await expect(builder.locator('[role=status]', { hasText: /Added: Gel manicure|Đã thêm: Gel tay/ })).toBeVisible();
+  const linh = page.locator('#tech-' + (await page.locator('article[id^=tech-]').first().getAttribute('id'))!.slice(5));
+  await expect(linh.locator('li', { hasText: 'Gel manicure' }).first()).toBeVisible();
   // repeat last in one tap
-  const before = await page.locator('td', { hasText: 'Gel manicure' }).count();
-  await page.locator('button', { hasText: /Repeat last|Lặp lại/ }).click();
-  await expect(page.locator('td', { hasText: 'Gel manicure' })).toHaveCount(before + 1);
-  // card tips handed over in cash, then undo
-  await page.locator('button', { hasText: /Card tips handed over in cash|Đã đưa tip thẻ/ }).first().click();
-  await expect(page.locator('button', { hasText: /Card tips paid out in cash|Tip thẻ đã trả tiền mặt/ }).first()).toBeVisible();
+  const before = await linh.locator('li', { hasText: 'Gel manicure' }).count();
+  await builder.locator('button', { hasText: /Repeat|Lặp lại/ }).click();
+  await expect(linh.locator('li', { hasText: 'Gel manicure' })).toHaveCount(before + 1);
+  // undo the repeat from the builder
+  await builder.locator('button', { hasText: /^\s*(Undo|Hoàn tác)\s*$/ }).click();
+  await expect(linh.locator('li', { hasText: 'Gel manicure' })).toHaveCount(before);
+  // card tips handed over in cash, with Undo in the toast
+  await linh.locator('button', { hasText: /Card tips handed over in cash|Đã đưa tip thẻ/ }).click();
+  await expect(linh.locator('button', { hasText: /Card tips paid out in cash|Tip thẻ đã trả tiền mặt/ })).toBeVisible();
+  await page.locator('[data-testid=toast] button', { hasText: /Undo|Hoàn tác/ }).click();
+  await expect(linh.locator('button', { hasText: /Card tips handed over in cash|Đã đưa tip thẻ/ })).toBeVisible();
 
   // pay runs list
   await page.goto(`${BASE}/app/pay`);
@@ -41,12 +50,18 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await expect(page.locator('table tbody tr').first()).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/03-pay-week-draft.png`, fullPage: true });
 
-  // approve
+  // approve: two presses, no modal
   const approveBtn = page.locator('form[action="?/approve"] button');
   if (await approveBtn.count()) {
-    await approveBtn.click();
-    await expect(page.locator('a', { hasText: 'Gusto CSV' })).toBeVisible();
+    await approveBtn.first().click();
+    await page.waitForTimeout(400); // a second press within 350 ms counts as a double tap and is ignored
+    await page.locator('form[action="?/approve"] button[type=submit]', { hasText: /Confirm|Xác nhận/ }).click();
+    await expect(page.locator('[data-testid=run-status] [aria-current=step]')).toContainText(/Approved|Đã duyệt|Paid|Đã trả/);
   }
+  // exports live in the options menu once approved
+  await page.locator('button[aria-label="Options"], button[aria-label="Tùy chọn"]').click();
+  await expect(page.locator('[role=menuitem]', { hasText: 'Gusto CSV' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.screenshot({ path: `${SHOTS}/04-pay-week-approved.png`, fullPage: true });
 
   // exports
@@ -85,17 +100,21 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
   await ap.screenshot({ path: `${SHOTS}/07-shared-statement.png`, fullPage: true });
   await anon.close();
 
-  // mark paid in one click
+  // mark paid: one action, confirmed with the amount
   await page.goto(`${BASE}${href}`);
   const payBtn = page.locator('button', { hasText: /Mark all paid by check today|Đánh dấu đã trả hết/ });
-  if (await payBtn.count()) await payBtn.click();
-  await expect(page.locator('h1 .badge')).toContainText(/Paid|Đã trả/);
+  if (await payBtn.count()) {
+    await payBtn.click();
+    await page.waitForTimeout(400);
+    await page.locator('button[type=submit]', { hasText: /Confirm|Xác nhận/ }).click();
+  }
+  await expect(page.locator('[data-testid=run-status] [aria-current=step]')).toContainText(/Paid|Đã trả/);
 
   // audit page + exports
   await page.goto(`${BASE}/app/audit`);
-  await expect(page.locator('tbody tr').first()).toBeVisible();
+  await expect(page.locator('[data-testid=history] li').first()).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/08-audit.png`, fullPage: true });
-  const pdfA = page.locator('a', { hasText: /Export PDF|Xuất PDF/ });
+  const pdfA = page.locator('a', { hasText: /PDF binder|Hồ sơ PDF/ });
   const pdfAHref = await pdfA.getAttribute('href');
   const b = await page.request.get(`${BASE}${pdfAHref}`);
   expect(b.status()).toBe(200);
@@ -113,7 +132,8 @@ test('owner signs in, sees today, pay run, approves, statement, exports, audit',
 
   // import page renders
   await page.goto(`${BASE}/app/tickets/import`);
-  await expect(page.locator('input[type=file]')).toBeVisible();
+  await expect(page.locator('input[type=file]')).toBeAttached();
+  await expect(page.getByText(/Drop the CSV file here|Thả file CSV vào đây/)).toBeVisible();
 });
 
 test('tablet pairs and a technician clocks in and out with a PIN', async ({ browser }) => {
@@ -156,5 +176,47 @@ test('tablet pairs and a technician clocks in and out with a PIN', async ({ brow
   await page.screenshot({ path: `${SHOTS}/13-kiosk-actions.png` });
   await page.locator('button', { hasText: /Clock out|Ra ca/ }).click();
   await expect(page.locator('text=/Clocked out at|Đã ra ca lúc/')).toBeVisible();
+  await ctx.close();
+});
+
+test('a technician who forgot to clock out confirms the time at the tablet', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/kiosk/pair`);
+  await page.fill('#email', 'owner@example.com');
+  await page.fill('#password', 'password123');
+  await page.click('button[type=submit]');
+  await page.waitForURL(/\/kiosk$/);
+  const kim = page.locator('main button', { hasText: 'Kim' });
+  test.skip(!(await kim.textContent())?.match(/Not clocked out|Chưa ra ca/), 'no forgotten shift seeded (today is the first day of the week)');
+  await kim.click();
+  for (const d of ['4', '4', '4', '4']) await page.locator('main button', { hasText: new RegExp(`^${d}$`) }).click();
+  await expect(page.locator('text=/You did not clock out|Bạn chưa ra ca/')).toBeVisible();
+  await page.locator('button', { hasText: /Yes, I left at|Đúng, tôi về lúc/ }).click();
+  // auto clock-in follows, and the done screen confirms both
+  await expect(page.locator('text=/Clocked in at|Đã vào ca lúc/')).toBeVisible();
+  await expect(page.locator('text=/Saved: you left at|Đã lưu: bạn về lúc/')).toBeVisible();
+  await ctx.close();
+});
+
+
+test('offline punches queue on the tablet and send when Wi-Fi returns', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/kiosk/pair`);
+  await page.fill('#email', 'owner@example.com');
+  await page.fill('#password', 'password123');
+  await page.click('button[type=submit]');
+  await page.waitForURL(/\/kiosk$/);
+  await ctx.setOffline(true);
+  await page.locator('main button', { hasText: 'Jenny' }).click();
+  for (const d of ['5', '5', '5', '5']) await page.locator('main button', { hasText: new RegExp(`^${d}$`) }).click();
+  // the PIN cannot be checked offline, so the choice is offered and the punch is queued
+  await page.locator('button', { hasText: /^.*(Clock out|Ra ca).*$/ }).first().click();
+  await expect(page.locator('[role=status]', { hasText: /Offline|Mất mạng/ }).first()).toBeVisible();
+  await expect(page.locator('text=/1 punch|1 lần/').first()).toBeVisible();
+  await ctx.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.locator('text=/waiting to send|đang chờ gửi/')).toHaveCount(0, { timeout: 10000 });
   await ctx.close();
 });

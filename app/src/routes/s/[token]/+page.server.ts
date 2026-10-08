@@ -6,6 +6,7 @@ import { payLines, payRuns, salons } from '$lib/server/db/schema';
 import { verifyShare } from '$lib/server/auth';
 import { hydrateLine } from '$lib/server/payrun';
 import { localDate, nowIso } from '$lib/time';
+import { statementLangs } from '$lib/statementLang';
 
 export const load: PageServerLoad = async ({ params, url }) => {
   const id = verifyShare(params.token);
@@ -15,9 +16,9 @@ export const load: PageServerLoad = async ({ params, url }) => {
   const run = (await db.select().from(payRuns).where(eq(payRuns.id, line.payRunId)).get())!;
   const salon = (await db.select().from(salons).where(eq(salons.id, run.salonId)).get())!;
   const h = hydrateLine(line);
-  const q = url.searchParams.get('lang');
+  const langs = statementLangs(url.searchParams.get('lang'), h.worker.locale as 'en' | 'vi');
   return {
-    locale: q === 'vi' || q === 'en' ? q : (h.worker.locale as 'en' | 'vi'),
+    ...langs,
     salon: { name: salon.name, address: salon.address, licenseNo: salon.licenseNo, state: salon.state },
     tz: salon.timezone,
     line: h,

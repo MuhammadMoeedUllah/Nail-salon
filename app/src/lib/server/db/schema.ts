@@ -19,6 +19,10 @@ export const salons = sqliteTable('salons', {
   photoOnPunch: integer('photo_on_punch', { mode: 'boolean' }).notNull().default(true),
   kioskAutoClockIn: integer('kiosk_auto_clock_in', { mode: 'boolean' }).notNull().default(true), // PIN alone clocks in when the worker is out
   kioskShowTickets: integer('kiosk_show_tickets', { mode: 'boolean' }).notNull().default(true), // today's ticket count per technician on the tablet
+  kioskSounds: integer('kiosk_sounds', { mode: 'boolean' }).notNull().default(false), // key clicks and success tones on the tablet
+  kioskDimAfterClose: integer('kiosk_dim_after_close', { mode: 'boolean' }).notNull().default(false), // dark board after closing time
+  closingTime: text('closing_time').notNull().default('19:30'), // usual closing time (HH:MM), offered when someone forgot to clock out
+  setupDismissedAt: text('setup_dismissed_at'), // owner hid the setup checklist on Home
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`)
 });
 
@@ -195,6 +199,8 @@ export const payLines = sqliteTable('pay_lines', {
   paidOn: text('paid_on'),
   version: integer('version').notNull().default(1),
   shareToken: text('share_token'),
+  statementSentAt: text('statement_sent_at'), // when the owner last sent the statement to the technician
+  statementSentVia: text('statement_sent_via'), // share | sms | copy
   flags: text('flags'), // JSON array of warning codes
   breakdown: text('breakdown') // JSON of the full calculation for the statement
 }, (t) => [uniqueIndex('pay_lines_run_worker_idx').on(t.payRunId, t.workerId)]);
@@ -227,3 +233,14 @@ export type PayRun = typeof payRuns.$inferSelect;
 export type PayLine = typeof payLines.$inferSelect;
 export type Edit = typeof edits.$inferSelect;
 export type Service = typeof services.$inferSelect;
+
+// Remembered CSV import choices per salon and source format, so a returning import needs no mapping.
+export const importMappings = sqliteTable('import_mappings', {
+  id: text('id').primaryKey(),
+  salonId: text('salon_id').notNull().references(() => salons.id),
+  format: text('format').notNull(),
+  staffMap: text('staff_map').notNull().default('{}'), // JSON: staff name in the file -> worker id ('' = skip)
+  columnMap: text('column_map'), // JSON Mapping, only when the owner changed the detected columns
+  tipsAre: text('tips_are').notNull().default('by_method'),
+  updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`)
+}, (t) => [uniqueIndex('import_mappings_salon_format_idx').on(t.salonId, t.format)]);

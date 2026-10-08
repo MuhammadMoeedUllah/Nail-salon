@@ -1,92 +1,201 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { makeT } from '$lib/i18n';
-  import { fmtCents, fmtDateTime } from '$lib/time';
+  import { makeT, type MessageKey } from '$lib/i18n';
+  import { fmtDateYear } from '$lib/time';
   import { regionsFor } from '$lib/rules';
+  import PageHeader from '$lib/ui/PageHeader.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import SegmentedControl from '$lib/ui/SegmentedControl.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import ConfirmButton from '$lib/ui/ConfirmButton.svelte';
+  import PasswordInput from '$lib/ui/PasswordInput.svelte';
+  import StatusPill from '$lib/ui/StatusPill.svelte';
+  import Avatar from '$lib/ui/Avatar.svelte';
+  import Banner from '$lib/ui/Banner.svelte';
+  import { toast } from '$lib/ui/toast.svelte';
+  import { busy } from '$lib/ui/forms';
+  import { money } from '$lib/workers/basis';
+  import { IconCheck, IconUserPlus, IconExternal, IconLock } from '$lib/ui/icons';
+
   let { data, form } = $props();
   const t = $derived(makeT(data.locale));
+  const L = $derived(data.locale);
   // svelte-ignore state_referenced_locally
-  let state = $state(data.salon.state);
-  const regions = $derived(regionsFor(state));
+  let usState = $state(data.salon.state);
+  // svelte-ignore state_referenced_locally
+  let lang = $state(data.salon.defaultLocale);
+  let role = $state('manager');
+  const regions = $derived(regionsFor(usState));
+  const where = $derived(`${data.states.find((s) => s.code === data.salon.state)?.name ?? data.salon.state}${data.salon.region ? ` · ${regionsFor(data.salon.state).find((r) => r.code === data.salon.region)?.name ?? data.salon.region}` : ''}`);
+  const salonErrors = $derived<Record<string, string>>(form?.form === 'salon' ? (form?.errors ?? {}) : {});
+
+  const ruleText = (r: (typeof data.rules)[number]) => {
+    switch (r.key) {
+      case 'min_wage': return t('se_rule_min_wage', { amount: money(Number(r.value)) });
+      case 'ot_weekly_threshold_hours': return t('se_rule_ot_weekly', { n: String(r.value) });
+      case 'ot_daily_threshold_hours': return t('se_rule_ot_daily', { n: String(r.value) });
+      case 'dt_daily_threshold_hours': return t('se_rule_dt_daily', { n: String(r.value) });
+      case 'spread_of_hours': return t('se_rule_spread');
+    }
+    return r.key;
+  };
+  const roles = $derived([
+    { value: 'owner', label: t('se_role_owner'), text: t('se_role_owner_x') },
+    { value: 'manager', label: t('se_role_manager'), text: t('se_role_manager_x') },
+    { value: 'bookkeeper', label: t('se_role_bookkeeper'), text: t('se_role_bookkeeper_x') }
+  ]);
+  const roleLabel = (r: string) => t(`se_role_${r}` as MessageKey);
 </script>
 
 <svelte:head><title>{t('settings_title')}</title></svelte:head>
-<h1 class="mb-4 text-2xl font-bold">{t('settings_title')}</h1>
 
-<div class="grid gap-6 lg:grid-cols-2">
-  <form method="post" action="?/salon" use:enhance class="card space-y-4">
-    <h2 class="font-bold">{t('settings_salon')}</h2>
-    {#if form?.form === 'salon' && form?.ok}<p class="rounded bg-emerald-50 p-2 text-sm text-emerald-800">✓</p>{/if}
-    {#if form?.form === 'salon' && form?.error}<p class="rounded bg-red-50 p-2 text-sm text-red-700">{t('invalid')}</p>{/if}
-    <div><label class="label" for="name">{t('salon_name')}</label><input class="input" id="name" name="name" value={data.salon.name} required disabled={!data.isOwner} /></div>
-    <div class="grid grid-cols-2 gap-3">
-      <div><label class="label" for="licenseNo">{t('settings_license')}</label><input class="input" id="licenseNo" name="licenseNo" value={data.salon.licenseNo ?? ''} disabled={!data.isOwner} /></div>
-      <div><label class="label" for="defaultLocale">{t('language')}</label><select class="input" id="defaultLocale" name="defaultLocale" value={data.salon.defaultLocale} disabled={!data.isOwner}><option value="en">English</option><option value="vi">Tiếng Việt</option></select></div>
-    </div>
-    <div><label class="label" for="address">{t('address')}</label><input class="input" id="address" name="address" value={data.salon.address ?? ''} disabled={!data.isOwner} /></div>
-    <div class="grid grid-cols-2 gap-3">
-      <div><label class="label" for="state">{t('state')}</label><select class="input" id="state" name="state" bind:value={state} disabled={!data.isOwner}>{#each data.states as s}<option value={s.code}>{s.code} · {s.name}</option>{/each}</select></div>
-      {#if regions.length}
-        <div><label class="label" for="region">{t('settings_region')}</label><select class="input" id="region" name="region" value={data.salon.region ?? regions[0].code} disabled={!data.isOwner}>{#each regions as r}<option value={r.code}>{r.name}</option>{/each}</select></div>
-      {/if}
-      <div><label class="label" for="timezone">{t('settings_timezone')}</label><select class="input" id="timezone" name="timezone" value={data.salon.timezone} disabled={!data.isOwner}>{#each data.timezones as z}<option value={z}>{z}</option>{/each}</select></div>
-      <div><label class="label" for="workweekStart">{t('settings_workweek')}</label><select class="input" id="workweekStart" name="workweekStart" value={String(data.salon.workweekStart)} disabled={!data.isOwner}>{#each [0, 1, 2, 3, 4, 5, 6] as d}<option value={String(d)}>{t(`weekday_${d}` as any)}</option>{/each}</select></div>
-      <div><label class="label" for="payFrequency">{t('pay_period')}</label><input class="input" id="payFrequency" value={t('pay_week')} disabled /><input type="hidden" name="payFrequency" value="weekly" />{#if state === 'NY'}<p class="mt-1 text-xs text-stone-500">{t('ny_weekly_note')}</p>{/if}</div>
-    </div>
-    <label class="flex items-center gap-2"><input type="checkbox" name="photoOnPunch" checked={data.salon.photoOnPunch} disabled={!data.isOwner} /> {t('settings_photo')}</label>
-    <label class="flex items-center gap-2"><input type="checkbox" name="kioskAutoClockIn" checked={data.salon.kioskAutoClockIn} disabled={!data.isOwner} /> {t('settings_auto_in')} <span class="text-xs text-stone-500">· {t('kiosk_auto_in_hint')}</span></label>
-    <label class="flex items-center gap-2"><input type="checkbox" name="kioskShowTickets" checked={data.salon.kioskShowTickets} disabled={!data.isOwner} /> {t('settings_show_tickets')}</label>
-    {#if data.isOwner}<button class="btn-primary">{t('save')}</button>{/if}
-  </form>
+<PageHeader title={t('settings_title')} />
 
-  <div class="space-y-6">
-    <div class="card">
-      <h2 class="mb-2 font-bold">{t('settings_rules')} · {data.salon.state}{data.salon.region ? ' · ' + data.salon.region : ''}</h2>
-      <table class="table text-sm">
-        <tbody>
-          {#each data.rules as e}
-            <tr><td>{e.key === 'min_wage' ? t('min_wage') : e.key === 'ot_weekly_threshold_hours' ? t('ot_after') : e.key}</td><td class="tabular-nums">{e.key === 'min_wage' ? fmtCents(Number(e.value)) + t('per_hour') : e.value + (e.unit === 'hours' ? ' ' + t('hours_unit') : '')}</td><td class="text-xs"><a class="underline" href={e.source_url} target="_blank" rel="noopener">{e.source_title}</a><br />{t('effective')} {e.effective_from} · {t('checked')} {e.checked_on}</td></tr>
-          {/each}
-          <tr><td>{t('audit_retention')}</td><td>{data.retention} y</td><td></td></tr>
-        </tbody>
-      </table>
-      <p class="mt-2 text-xs text-stone-500">{t('not_legal_advice')}</p>
-    </div>
+<nav class="mb-4 flex flex-wrap gap-2" aria-label={t('se_jump')}>
+  <a href="#salon" class="btn-secondary min-h-11 px-4 text-base">{t('settings_salon')}</a>
+  <a href="#rules" class="btn-secondary min-h-11 px-4 text-base">{t('se_rules_title')}</a>
+  <a href="#logins" class="btn-secondary min-h-11 px-4 text-base">{t('se_logins_title')}</a>
+</nav>
 
-    <div class="card">
-      <h2 class="mb-2 font-bold">{t('settings_devices')}</h2>
-      {#if data.devices.length === 0}<p class="text-sm text-stone-500">{t('kiosk_not_paired')} <a class="underline" href="/kiosk/pair">{t('kiosk_pair')}</a></p>{/if}
-      <ul class="divide-y divide-stone-100 text-sm">
-        {#each data.devices as d}
-          <li class="flex items-center justify-between py-2">
-            <div><div class="font-medium">{d.name}</div><div class="text-xs text-stone-500">{t('settings_paired_on')} {d.createdAt.slice(0, 10)}{#if d.lastSeenAt} · {t('settings_last_seen')} {fmtDateTime(d.lastSeenAt, data.salon.timezone, data.locale)}{/if}</div></div>
-            {#if data.isOwner}<form method="post" action="?/revokeDevice" use:enhance><input type="hidden" name="id" value={d.id} /><button class="btn-ghost text-red-700">{t('settings_revoke')}</button></form>{/if}
-          </li>
-        {/each}
-      </ul>
-      <a class="btn-secondary mt-2" href="/kiosk/pair">{t('kiosk_pair')}</a>
-    </div>
+<div class="max-w-3xl space-y-4">
+  {#if !data.isOwner}<Banner kind="info" icon={IconLock}>{t('se_owner_only')}</Banner>{/if}
 
-    <div class="card">
-      <h2 class="mb-2 font-bold">{t('settings_users')}</h2>
-      <ul class="mb-3 divide-y divide-stone-100 text-sm">
-        {#each data.users as u}
-          <li class="flex items-center justify-between py-2">
-            <div><span class="font-medium">{u.name}</span> <span class="text-stone-500">· {u.email}</span> <span class="badge bg-stone-100">{u.role}</span></div>
-            {#if data.isOwner}<form method="post" action="?/removeUser" use:enhance><input type="hidden" name="id" value={u.id} /><button class="btn-ghost text-red-700">{t('delete')}</button></form>{/if}
-          </li>
-        {/each}
-      </ul>
-      {#if data.isOwner}
-        <form method="post" action="?/addUser" use:enhance class="grid gap-2 sm:grid-cols-5">
-          {#if form?.form === 'user' && form?.error}<p class="text-sm text-red-700 sm:col-span-5">{form.error === 'email_taken' ? 'Email already used' : t('invalid')}</p>{/if}
-          <input class="input" name="name" placeholder={t('your_name')} required />
-          <input class="input" name="email" type="email" placeholder={t('email')} required />
-          <input class="input" name="password" type="password" placeholder={t('password')} minlength="8" required />
-          <select class="input" name="role"><option value="bookkeeper">bookkeeper</option><option value="manager">manager</option><option value="owner">owner</option></select>
-          <button class="btn-secondary">{t('add')}</button>
-        </form>
-      {/if}
-    </div>
-  </div>
+  <!-- Salon -->
+  <section id="salon" class="card scroll-mt-4" aria-labelledby="salon-h">
+    <h2 id="salon-h" class="text-xl font-bold">{t('settings_salon')}</h2>
+    <p class="mb-4 text-sm text-ink-muted">{t('se_salon_hint')}</p>
+    <form
+      method="post"
+      action="?/salon"
+      class="space-y-4"
+      use:enhance={busy(() => async ({ result, update }) => {
+        if (result.type === 'success') toast(t('se_saved'));
+        await update({ reset: false });
+      })}
+    >
+      {#if Object.keys(salonErrors).length}<Banner kind="error">{t('wk_check_form')}</Banner>{/if}
+      <fieldset class="space-y-4" disabled={!data.isOwner}>
+        <Field id="name" label={t('salon_name')} error={salonErrors.name ? t('wk_required') : null}>
+          <input class="input" id="name" name="name" value={data.salon.name} required minlength="2" maxlength="80" aria-invalid={!!salonErrors.name} aria-describedby="name-error" />
+        </Field>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <Field id="licenseNo" label={t('settings_license')}><input class="input" id="licenseNo" name="licenseNo" value={data.salon.licenseNo ?? ''} maxlength="40" /></Field>
+          <SegmentedControl label={t('se_default_lang')} showLabel name="defaultLocale" bind:value={lang} options={[{ value: 'en', label: 'English' }, { value: 'vi', label: 'Tiếng Việt' }]} />
+        </div>
+        <Field id="address" label={t('se_address')}><input class="input" id="address" name="address" value={data.salon.address ?? ''} maxlength="200" /></Field>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <Field id="state" label={t('state')}>
+            <select class="input" id="state" name="state" bind:value={usState}>{#each data.states as s (s.code)}<option value={s.code}>{s.name}</option>{/each}</select>
+          </Field>
+          {#if regions.length}
+            <Field id="region" label={t('settings_region')}>
+              <select class="input" id="region" name="region" value={data.salon.region ?? regions[0].code}>{#each regions as r (r.code)}<option value={r.code}>{r.name}</option>{/each}</select>
+            </Field>
+          {/if}
+          <Field id="timezone" label={t('settings_timezone')}>
+            <select class="input" id="timezone" name="timezone" value={data.salon.timezone}>{#each data.timezones as z (z)}<option value={z}>{z.replace('America/', '').replace('Pacific/', '').replace('_', ' ')}</option>{/each}</select>
+          </Field>
+          <Field id="workweekStart" label={t('se_week_starts')}>
+            <select class="input" id="workweekStart" name="workweekStart" value={String(data.salon.workweekStart)}>{#each [1, 2, 3, 4, 5, 6, 0] as d (d)}<option value={String(d)}>{t(`weekday_${d}` as MessageKey)}</option>{/each}</select>
+          </Field>
+          <div>
+            <p class="label">{t('pay_period')}</p>
+            <p class="flex min-h-12 items-center text-base font-bold">{t('se_pay_weekly')}</p>
+            {#if usState === 'NY'}<p class="hint">{t('ny_weekly_note')}</p>{/if}
+          </div>
+          <Field id="closingTime" label={t('se_closing')} hint={t('se_closing_hint')}>
+            <input class="input w-40" id="closingTime" name="closingTime" type="time" step="900" value={data.salon.closingTime} required aria-describedby="closingTime-hint" />
+          </Field>
+        </div>
+      </fieldset>
+      {#if data.isOwner}<Button type="submit" variant="primary" size="lg" icon={IconCheck}>{t('save')}</Button>{/if}
+    </form>
+  </section>
+
+  <!-- Pay rules -->
+  <section id="rules" class="card scroll-mt-4" aria-labelledby="rules-h">
+    <h2 id="rules-h" class="text-xl font-bold">{t('se_rules_title')}</h2>
+    <p class="mb-4 text-sm text-ink-muted">{t('se_rules_hint', { where })}</p>
+    <ul class="divide-y divide-line">
+      {#each data.rules as r (r.key + r.jurisdiction)}
+        <li class="py-3">
+          <p class="text-base font-bold">{ruleText(r)}</p>
+          <p class="mt-0.5 text-sm text-ink-muted">
+            {t('se_rule_since', { date: fmtDateYear(r.from, L) })} · {t('se_rule_checked', { date: fmtDateYear(r.checked, L) })} ·
+            <a class="font-bold text-brand-strong underline decoration-brand-tint decoration-2 underline-offset-4" href={r.url} target="_blank" rel="noopener">{r.title}<IconExternal size={14} class="ml-1 inline-block align-[-2px]" /></a>
+          </p>
+        </li>
+      {/each}
+      <li class="py-3"><p class="text-base font-bold">{t('se_rule_retention', { n: data.retention })}</p></li>
+    </ul>
+    <p class="mt-3 text-sm text-ink-muted">{t('not_legal_advice')}</p>
+  </section>
+
+  <!-- Logins -->
+  <section id="logins" class="card scroll-mt-4" aria-labelledby="logins-h">
+    <h2 id="logins-h" class="text-xl font-bold">{t('se_logins_title')}</h2>
+    <p class="mb-4 text-sm text-ink-muted">{t('se_logins_hint')}</p>
+    {#if form?.form === 'remove' && form?.error}<Banner kind="error" class="mb-3">{t(form.error as MessageKey)}</Banner>{/if}
+    <ul class="divide-y divide-line">
+      {#each data.users as u (u.id)}
+        <li class="flex flex-wrap items-center gap-3 py-3">
+          <Avatar name={u.name} id={u.id} size={40} />
+          <div class="min-w-0 flex-1">
+            <p class="flex flex-wrap items-center gap-2 text-base font-bold">{u.name}{#if u.id === data.me}<StatusPill kind="brand">{t('se_you')}</StatusPill>{/if}</p>
+            <p class="truncate text-sm text-ink-muted">{u.email} · {roleLabel(u.role)}</p>
+          </div>
+          {#if data.isOwner && u.id !== data.me}
+            <form
+              method="post"
+              action="?/removeUser"
+              use:enhance={busy(() => async ({ result, update }) => {
+                if (result.type === 'success') toast(t('se_removed', { name: u.name }));
+                await update();
+              })}
+            >
+              <input type="hidden" name="id" value={u.id} />
+              <ConfirmButton variant="secondary" danger label={t('se_remove')} confirmLabel={t('se_remove_confirm', { name: u.name })} cancelLabel={t('cancel')} />
+            </form>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+
+    {#if data.isOwner}
+      <form
+        method="post"
+        action="?/addUser"
+        class="mt-4 space-y-4 rounded-2xl bg-sunken p-4"
+        use:enhance={busy(() => async ({ result, update }) => {
+          if (result.type === 'success') {
+            toast(t('se_login_added', { name: String(result.data?.name ?? '') }));
+            role = 'manager';
+          }
+          await update({ reset: result.type === 'success' });
+        })}
+      >
+        <h3 class="flex items-center gap-2 text-lg font-bold"><IconUserPlus size={20} />{t('se_add_login')}</h3>
+        {#if form?.form === 'user' && form?.error}<Banner kind="error">{t(form.error as MessageKey)}</Banner>{/if}
+        <div class="grid gap-4 sm:grid-cols-2">
+          <Field id="u-name" label={t('se_login_name')}><input class="input" id="u-name" name="name" required maxlength="80" autocomplete="off" value={form?.form === 'user' ? (form?.values?.name ?? '') : ''} /></Field>
+          <Field id="u-email" label={t('email')}><input class="input" id="u-email" name="email" type="email" required autocomplete="off" value={form?.form === 'user' ? (form?.values?.email ?? '') : ''} /></Field>
+          <Field id="u-password" label={t('password')} hint={t('se_password_hint')} class="sm:col-span-2">
+            <PasswordInput id="u-password" name="password" required minlength={8} autocomplete="new-password" showLabel={t('pw_show')} hideLabel={t('pw_hide')} aria-describedby="u-password-hint" class="max-w-sm" />
+          </Field>
+        </div>
+        <fieldset>
+          <legend class="label">{t('se_role')}</legend>
+          <div class="grid gap-2 sm:grid-cols-3">
+            {#each roles as r (r.value)}
+              <label class="flex cursor-pointer items-start gap-3 rounded-xl border-2 bg-surface p-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus {role === r.value ? 'border-brand' : 'border-line hover:border-line-strong'}">
+                <input type="radio" name="role" value={r.value} bind:group={role} class="mt-0.5 size-5 shrink-0 accent-brand" />
+                <span class="min-w-0"><span class="block text-base font-bold">{r.label}</span><span class="block text-sm text-ink-muted">{r.text}</span></span>
+              </label>
+            {/each}
+          </div>
+        </fieldset>
+        <Button type="submit" variant="primary" icon={IconUserPlus}>{t('se_add_login')}</Button>
+      </form>
+    {/if}
+  </section>
 </div>

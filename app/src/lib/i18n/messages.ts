@@ -1,9 +1,19 @@
 // UI strings. Keys are stable; Vietnamese uses the terms US nail-industry owners and techs use
 // ("bao lương" guarantee, "ăn chia" commission split, "tiền tip", "chấm công").
+import * as shell from './ux-shell';
+import * as home from './ux-home';
+import * as kiosk from './ux-kiosk';
+import * as today from './ux-today';
+import * as pay from './ux-pay';
+import * as team from './ux-team';
+import * as setup from './ux-setup';
+import * as records from './ux-records';
+import * as auth from './ux-auth';
+
 export type Locale = 'en' | 'vi';
 export const LOCALES: Locale[] = ['en', 'vi'];
 
-const en = {
+const baseEn = {
   app_name: 'Salon Pay Records',
   tagline: 'Clock in, pay commission, and keep the records that prove you paid correctly.',
   nav_today: 'Today',
@@ -279,15 +289,16 @@ const en = {
   import_summary_unsupported: 'This file is a period summary (one row per technician), not a list of sales. Export the detailed report instead: Square Items Detail or Transactions, Fresha Commission activity, Vagaro Transaction List.'
 } as const;
 
+const en = { ...baseEn, ...shell.en, ...home.en, ...kiosk.en, ...today.en, ...pay.en, ...team.en, ...setup.en, ...records.en, ...auth.en };
 export type MessageKey = keyof typeof en;
 
-const vi: Record<MessageKey, string> = {
+const baseVi: Record<keyof typeof baseEn, string> = {
   app_name: 'Sổ Lương Tiệm Nail',
   tagline: 'Chấm công, trả ăn chia, và giữ hồ sơ chứng minh tiệm trả lương đúng luật.',
   nav_today: 'Hôm nay',
   nav_pay: 'Tính lương',
   nav_workers: 'Thợ',
-  nav_audit: 'Hồ sơ kiểm tra lao động',
+  nav_audit: 'Hồ sơ kiểm tra',
   nav_settings: 'Cài đặt',
   nav_kiosk: 'Máy chấm công',
   sign_in: 'Đăng nhập',
@@ -548,6 +559,7 @@ const vi: Record<MessageKey, string> = {
   repeat_last: 'Lặp lại phiếu trước',
   import_summary_unsupported: 'File này là bản tổng kết theo kỳ (mỗi thợ một dòng), không phải danh sách phiếu. Hãy xuất báo cáo chi tiết: Square Items Detail hoặc Transactions, Fresha Commission activity, Vagaro Transaction List.'
 };
+const vi: Record<MessageKey, string> = { ...baseVi, ...shell.vi, ...home.vi, ...kiosk.vi, ...today.vi, ...pay.vi, ...team.vi, ...setup.vi, ...records.vi, ...auth.vi };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, vi };
 

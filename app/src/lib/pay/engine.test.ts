@@ -202,8 +202,10 @@ describe('computeWeek: invariants', () => {
         expect(r.overtimePremiumCents).toBeGreaterThanOrEqual(0);
         expect(r.minWageTopupCents).toBeGreaterThanOrEqual(0);
         if (hours > 0) {
-          // straight time per hour is at least the minimum wage (within a cent of rounding)
-          expect(r.straightTimeCents / hours).toBeGreaterThanOrEqual(NYC.minWageCents - 1);
+          // straight time covers the minimum wage for every hour worked; the top-up is rounded to the
+          // nearest cent, so the week's total may sit at most half a cent under the exact product
+          // (checking per hour instead would magnify that half cent on a shift of a few minutes)
+          expect(r.straightTimeCents).toBeGreaterThanOrEqual(NYC.minWageCents * hours - 0.5);
         }
         expect(r.totalCents).toBe(r.grossWagesCents + r.tipsCardOwedCents);
       })

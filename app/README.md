@@ -21,11 +21,14 @@ Sign in at `/login`, or create the first salon at `/signup` (open while the data
 |---|---|
 | `pnpm dev` | development server |
 | `pnpm build` then `pnpm start` | production build, served with adapter-node (migrations run at boot) |
-| `pnpm test` | unit tests: pay engine worked examples and invariants, rules lookup, CSV parsers, time helpers |
+| `pnpm test` | unit tests: pay engine worked examples and invariants, rules lookup, CSV parsers, time helpers, message tables, statement and audit sentences |
 | `pnpm check` | svelte-check and TypeScript |
 | `pnpm db:generate` | regenerate the Drizzle migration after editing `src/lib/server/db/schema.ts` |
 | `pnpm db:seed` | demo salon with two weeks of punches and tickets |
-| `pnpm e2e` | Playwright smoke test against a running server (`BASE_URL`, default `http://localhost:3123`) |
+| `pnpm e2e` | Playwright tests against a running, freshly seeded server (`BASE_URL`, default `http://localhost:3123`): flows per screen, axe accessibility, touch targets and screenshots |
+| `pnpm e2e:a11y`, `pnpm e2e:visual` | only the accessibility and touch-target checks, or only the screenshots and overflow check |
+| `node scripts/perf.mjs` | throttled lab check of largest paint, blocking time and script size on Today, Home and the tablet clock |
+| `node scripts/ux-shots.mjs <dir>` | after-screenshots of every screen; it approves and pays a week, so use a throwaway database |
 
 ## Environment
 

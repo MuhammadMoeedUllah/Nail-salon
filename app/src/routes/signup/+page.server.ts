@@ -16,7 +16,7 @@ async function allowed() {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (locals.user) throw redirect(303, '/app/today');
+  if (locals.user) throw redirect(303, '/app/home');
   if (!(await allowed())) throw redirect(303, '/login');
   return { locale: locals.locale, states: STATES };
 };
@@ -33,10 +33,10 @@ const Schema = z.object({
 
 export const actions: Actions = {
   default: async ({ request, cookies }) => {
-    if (!(await allowed())) return fail(403, { error: 'Sign-up is closed.', values: {} as Record<string, string> });
+    if (!(await allowed())) return fail(403, { error: 'su_closed', values: {} as Record<string, string> });
     const raw = Object.fromEntries(await request.formData()) as Record<string, string>;
     const parsed = Schema.safeParse(raw);
-    if (!parsed.success) return fail(400, { error: 'Please check the form.', values: raw });
+    if (!parsed.success) return fail(400, { error: 'su_check', values: raw });
     const v = parsed.data;
     const regions = regionsFor(v.state);
     const region = regions.length && v.region && regions.some((r) => r.code === v.region) ? v.region : null;
@@ -55,10 +55,10 @@ export const actions: Actions = {
       await db.insert(services).values(DEFAULT_SERVICES.map((s, i) => ({ id: newId(), salonId, nameEn: s.en, nameVi: s.vi, defaultPriceCents: s.price, sortOrder: i })));
       await recordEdit({ salonId, entity: 'salon', entityId: salonId, action: 'create', actor: { type: 'user', id: userId, name: v.name } });
     } catch (e: any) {
-      if (String(e?.message).includes('UNIQUE')) return fail(400, { error: 'That email already has an account.', values: raw });
+      if (String(e?.message).includes('UNIQUE')) return fail(400, { error: 'su_email_taken', values: raw });
       throw e;
     }
     await createSession(userId, cookies);
-    throw redirect(303, '/app/workers?welcome=1');
+    throw redirect(303, '/app/home');
   }
 };

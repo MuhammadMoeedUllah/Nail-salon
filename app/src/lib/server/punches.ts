@@ -3,7 +3,7 @@ import { db } from './db';
 import { punches, breaks, workers, tickets, type Punch, type Break, type Salon } from './db/schema';
 import { newId } from './auth';
 import { recordEdit, type Actor } from './audit';
-import { localDate, minutesBetween, nowIso } from '$lib/time';
+import { localDate, localToIso, minutesBetween, nowIso } from '$lib/time';
 
 export type PunchAction = 'in' | 'out' | 'break_start' | 'break_end';
 
@@ -181,9 +181,33 @@ export async function activeWorkers(salonId: string) {
 /** Void a clock-in made in the last two minutes by the same worker (the kiosk "Undo" button). */
 export async function undoPunch(salon: Salon, workerId: string, punchId: string, actor: Actor): Promise<boolean> {
   const p = await db.select().from(punches).where(and(eq(punches.id, punchId), eq(punches.workerId, workerId), eq(punches.salonId, salon.id))).get();
-  if (!p || p.tsOut || p.voidedAt) return false;
+  if (!p || p.voidedAt) return false;
+  if (p.tsOut) {
+    // undo a clock-out made in the last two minutes: the shift is open again
+    if (minutesBetween(p.tsOut, nowIso()) > 2) return false;
+    await db.update(punches).set({ tsOut: null, photoOutRef: null }).where(eq(punches.id, p.id));
+    await recordEdit({ salonId: salon.id, entity: 'punch', entityId: p.id, action: 'update', field: 'ts_out', oldValue: p.tsOut, newValue: null, reason: 'undo on tablet', actor });
+    return true;
+  }
   if (minutesBetween(p.tsIn, nowIso()) > 2) return false;
   await db.update(punches).set({ voidedAt: nowIso() }).where(eq(punches.id, p.id));
   await recordEdit({ salonId: salon.id, entity: 'punch', entityId: p.id, action: 'void', oldValue: { tsIn: p.tsIn }, reason: 'undo on tablet', actor });
+  return true;
+}
+
+/**
+ * A technician who forgot to clock out confirms at the tablet when they left (UX-13). Only for a stale open shift;
+ * the time is on the shift's own date and must be after it started. The edit trail records who confirmed it.
+ */
+export async function closeStalePunch(salon: Salon, workerId: string, punchId: string, time: string, actor: Actor): Promise<boolean> {
+  const p = await db.select().from(punches).where(and(eq(punches.id, punchId), eq(punches.workerId, workerId), eq(punches.salonId, salon.id))).get();
+  if (!p || p.tsOut || p.voidedAt) return false;
+  if (minutesBetween(p.tsIn, nowIso()) <= STALE_HOURS * 60) return false;
+  const out = localToIso(p.workDate, time, salon.timezone);
+  if (new Date(out).getTime() <= new Date(p.tsIn).getTime() || new Date(out).getTime() > Date.now()) return false;
+  const open = await db.select().from(breaks).where(and(eq(breaks.punchId, p.id), isNull(breaks.tsEnd)));
+  for (const b of open) await db.update(breaks).set({ tsEnd: new Date(b.tsStart) < new Date(out) ? out : b.tsStart }).where(eq(breaks.id, b.id));
+  await db.update(punches).set({ tsOut: out }).where(eq(punches.id, p.id));
+  await recordEdit({ salonId: salon.id, entity: 'punch', entityId: p.id, action: 'update', field: 'ts_out', oldValue: null, newValue: out, reason: `Confirmed by the technician at the tablet: left at ${time}`, actor });
   return true;
 }

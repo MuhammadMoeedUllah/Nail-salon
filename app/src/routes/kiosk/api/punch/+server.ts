@@ -8,7 +8,8 @@ import { savePhoto } from '$lib/server/photos';
 const Body = z.object({
   workerId: z.string().min(1),
   pin: z.string().regex(/^\d{4,6}$/),
-  action: z.enum(['in', 'out', 'break_start', 'break_end', 'verify', 'undo']),
+  action: z.enum(['in', 'out', 'break_start', 'break_end', 'verify', 'undo', 'close_stale']),
+  time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   punchId: z.string().optional(),
   clientTs: z.string().optional(),
   offline: z.boolean().optional(),
@@ -42,6 +43,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const actor = locals.device
     ? { type: 'device' as const, id: locals.device.id, name: `${locals.device.name} · ${worker.displayName}` }
     : { type: 'user' as const, id: locals.user?.id, name: locals.user?.name };
+
+  if (b.action === 'close_stale') {
+    const { closeStalePunch } = await import('$lib/server/punches');
+    const ok = !!b.time && (await closeStalePunch(salon, worker.id, b.punchId ?? '', b.time, actor));
+    const st = await statusesFor(salon, [worker.id]);
+    return json({ ok, status: st[worker.id] }, { status: ok ? 200 : 409 });
+  }
 
   const r = await applyPunch({
     salon,

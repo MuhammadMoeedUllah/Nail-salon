@@ -1,44 +1,51 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { makeT } from '$lib/i18n';
+  import { makeT, type MessageKey } from '$lib/i18n';
   import LangSwitch from '$lib/components/LangSwitch.svelte';
+  import PasswordInput from '$lib/ui/PasswordInput.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Banner from '$lib/ui/Banner.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import { busy } from '$lib/ui/forms';
   import { regionsFor } from '$lib/rules';
   let { data, form } = $props();
   const t = $derived(makeT(data.locale));
   // svelte-ignore state_referenced_locally
-  let state = $state(form?.values?.state ?? 'NY');
-  const regions = $derived(regionsFor(state));
+  let usState = $state(form?.values?.state ?? 'NY');
+  const regions = $derived(regionsFor(usState));
 </script>
 
 <svelte:head><title>{t('create_account')} · {t('app_name')}</title></svelte:head>
 
-<main class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-  <div class="mb-6 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-2 text-lg font-bold text-brand-800"><img src="/favicon.svg" alt="" class="h-8 w-8" />{t('app_name')}</a>
-    <LangSwitch locale={data.locale} compact />
+<main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
+  <div class="mb-6 flex items-center justify-between gap-3">
+    <span class="flex items-center gap-2 text-lg font-bold text-ink"><img src="/favicon.svg" alt="" class="size-9" />{t('app_name')}</span>
+    <LangSwitch locale={data.locale} compact label={t('language')} />
   </div>
-  <div class="card">
-    <h1 class="mb-4 text-2xl font-bold">{t('create_account')}</h1>
-    {#if form?.error}<p class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{form.error}</p>{/if}
-    <form method="post" use:enhance class="space-y-4">
+  <div class="card p-6">
+    <h1 class="text-2xl font-bold">{t('create_account')}</h1>
+    <p class="mt-1 text-base text-ink-muted">{t('su_hint')}</p>
+    {#if form?.error}<Banner kind="error" class="mt-4">{t(form.error as MessageKey)}</Banner>{/if}
+    <form method="post" use:enhance={busy()} class="mt-5 space-y-4">
       <input type="hidden" name="locale" value={data.locale} />
-      <div><label class="label" for="salonName">{t('salon_name')}</label><input class="input" id="salonName" name="salonName" required value={form?.values?.salonName ?? ''} /></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="label" for="state">{t('state')}</label>
-          <select class="input" id="state" name="state" bind:value={state}>
-            {#each data.states as s}<option value={s.code}>{s.code} · {s.name}</option>{/each}
-          </select></div>
+      <Field id="salonName" label={t('salon_name')}><input class="input min-h-14 text-lg" id="salonName" name="salonName" required autocomplete="organization" value={form?.values?.salonName ?? ''} /></Field>
+      <div class="grid gap-4 {regions.length ? 'sm:grid-cols-2' : ''}">
+        <Field id="state" label={t('state')}>
+          <select class="input min-h-14 text-lg" id="state" name="state" bind:value={usState}>{#each data.states as s (s.code)}<option value={s.code}>{s.name}</option>{/each}</select>
+        </Field>
         {#if regions.length}
-          <div><label class="label" for="region">{t('settings_region')}</label>
-            <select class="input" id="region" name="region">
-              {#each regions as r}<option value={r.code}>{r.name}</option>{/each}
-            </select></div>
+          <Field id="region" label={t('settings_region')}>
+            <select class="input min-h-14 text-lg" id="region" name="region">{#each regions as r (r.code)}<option value={r.code}>{r.name}</option>{/each}</select>
+          </Field>
         {/if}
       </div>
-      <div><label class="label" for="name">{t('your_name')}</label><input class="input" id="name" name="name" required value={form?.values?.name ?? ''} /></div>
-      <div><label class="label" for="email">{t('email')}</label><input class="input" id="email" name="email" type="email" required value={form?.values?.email ?? ''} /></div>
-      <div><label class="label" for="password">{t('password')}</label><input class="input" id="password" name="password" type="password" minlength="8" autocomplete="new-password" required /></div>
-      <button class="btn-primary w-full" type="submit">{t('create_account')}</button>
+      <Field id="name" label={t('your_name')}><input class="input min-h-14 text-lg" id="name" name="name" required autocomplete="name" value={form?.values?.name ?? ''} /></Field>
+      <Field id="email" label={t('email')}><input class="input min-h-14 text-lg" id="email" name="email" type="email" required autocomplete="email" autocapitalize="off" spellcheck="false" value={form?.values?.email ?? ''} /></Field>
+      <Field id="password" label={t('password')} hint={t('su_password_hint')}>
+        <PasswordInput id="password" name="password" minlength={8} autocomplete="new-password" required showLabel={t('pw_show')} hideLabel={t('pw_hide')} inputClass="min-h-14 text-lg" aria-describedby="password-hint" />
+      </Field>
+      <Button type="submit" variant="primary" size="lg" block>{t('create_account')}</Button>
     </form>
+    <p class="mt-5 text-center text-base text-ink-muted">{t('su_have_account')} <a class="font-bold text-brand-strong underline decoration-brand-tint decoration-2 underline-offset-4" href="/login">{t('sign_in')}</a></p>
   </div>
 </main>

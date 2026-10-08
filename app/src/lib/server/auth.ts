@@ -38,16 +38,17 @@ export async function verifyPin(h: string, salonId: string, pin: string) {
   }
 }
 
-export async function createSession(userId: string, cookies: Cookies) {
+/** remember: a 30-day cookie; otherwise the session ends with the browser and lasts at most a day (UX-51). */
+export async function createSession(userId: string, cookies: Cookies, remember = true) {
   const token = newToken();
-  const expires = new Date(Date.now() + SESSION_DAYS * 86400000);
+  const expires = new Date(Date.now() + (remember ? SESSION_DAYS * 86400000 : 86400000));
   await db.insert(sessions).values({ id: sha256(token), userId, expiresAt: expires.toISOString() });
   cookies.set(SESSION_COOKIE, token, {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    expires
+    ...(remember ? { expires } : {})
   });
 }
 
