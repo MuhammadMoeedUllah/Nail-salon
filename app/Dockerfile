@@ -11,7 +11,7 @@ RUN pnpm build && pnpm prune --prod
 FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production \
-    PORT=3000 \
+    PORT=8080 \
     DATABASE_URL=/data/salon.db \
     PHOTO_DIR=/data/photos \
     MIGRATIONS_DIR=/app/drizzle \
@@ -30,5 +30,5 @@ COPY deploy/litestream.yml /etc/litestream.yml
 COPY deploy/start.sh /app/start.sh
 RUN chmod +x /app/start.sh && mkdir -p /data/photos
 VOLUME ["/data"]
-EXPOSE 3000
+EXPOSE 8080
 CMD ["/app/start.sh"]
