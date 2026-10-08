@@ -916,8 +916,32 @@ Generic: `confirm_prefix` ("Confirm: {label}"), `keep_editing`, `discard_changes
 
 `docs/ux-audit/2026-10-08-before/`: `phone-today.jpg`, `phone-today-vi.jpg`, `phone-pay-week-draft.jpg`, `phone-pay-week-paid.jpg`, `phone-statement.jpg`, `phone-workers.jpg`, `phone-worker-new.jpg`, `phone-settings.jpg`, `phone-audit.jpg`, `tablet-today.jpg`, `tablet-pay-list.jpg`, `tablet-pay-week-draft.jpg`, `tablet-statement.jpg`, `tablet-import.jpg`, `kiosk-grid.jpg`, `kiosk-grid-one-in.jpg`, `kiosk-pin.jpg`, `kiosk-actions.jpg`, `kiosk-done.jpg`. Captured from the demo seed (`pnpm db:seed`), owner `owner@example.com`, technician Linh PIN 1111, on 2026-10-08.
 
+The after set is in `docs/ux-audit/2026-10-08-after/`, with an index, the automated check results and the performance record. `app/scripts/ux-shots.mjs` regenerates it.
+
 ## Appendix C. Ticket log
 
-| Ticket | Commit | Date | Notes |
+All tickets landed on branch `claude/kind-edison-gqk1nx` on 2026-10-08.
+
+| Tickets | Phase | Commit | Status |
 |---|---|---|---|
-| (filled in by the implementer as tickets land) | | | |
+| UX-01 to UX-10 | P0 foundation: tokens, components, navigation, test harness | `4f5bf35` | Done |
+| UX-11 to UX-18 | P1 tablet clock | `ffbcaea` | Done |
+| UX-19 to UX-28 | P2 Today and ticket entry | `a8cab2f` | Done |
+| UX-29 to UX-33 | P3 Home | `4f5bf35`, finished in `a49439a` | Done |
+| UX-34 to UX-42 | P4 pay weeks, statements, sending | `a49439a` | Done |
+| UX-43 to UX-52 | P5 technicians, services, settings, tablets, import, audit, sign-in | `c279522` | Done |
+| UX-53, UX-54, UX-55 | P6 empty states, pending states, print | `a1135d4` | Done |
+| UX-56 | P6 performance budget | `a1135d4` | Partly done: Today's blocking time is 207 ms against 150 ms; see `docs/ux-audit/2026-10-08-after/perf.md` |
+| UX-57 | P6 accessibility pass | `a1135d4` | Automated part done; VoiceOver on an iPad and keyboard walks on real devices still to do |
+| UX-58 | P6 usability test with three salons | none | Not run; needs pilot salons. Script and record form in `docs/ux-audit/pilot-notes.md` |
+| UX-59 | P6 close-out | this commit | Done |
+
+### Where the build differs from the spec
+
+- **UX-44.** The form uses three numbered cards without a separate progress bar.
+- **UX-45.** The PIN card prints from the form page, so the PIN never appears in a web address. There is no separate PIN-card route. On the list, a locked PIN gets an Unlock button. A new PIN is made in the form.
+- **UX-46.** Drag to reorder works on larger screens through a grip. The arrows work on every screen.
+- **UX-47.** Closing time is one value for the week, not one per weekday. The tablet switches moved to the Tablets page, next to the paired tablets they affect.
+- **UX-50.** The technician filter is a native select, which the spec allows.
+- **UX-56.** The plan suggested a Lighthouse run. Lighthouse was not available in the build container, so `app/scripts/perf.mjs` measures the same signals with throttling.
+- **Overflow menu.** The plan named the Bits UI dropdown. It was replaced with a hand-written menu button to drop a positioning library of about 19 KB.

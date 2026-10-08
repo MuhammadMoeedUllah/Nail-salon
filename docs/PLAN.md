@@ -25,58 +25,73 @@ Price: $49 per salon per month, flat (from `README.md`). Positioning: protection
 
 ## 3. Screens
 
-Six screens, as the brief asked, plus sign-in and pairing.
+The interface was rebuilt on 2026-10-08 from `docs/UX-REVAMP-PLAN.md`, phases P0 to P6. Phones get four tabs at the bottom: Home, Today, Pay runs and More. Tablets in landscape get a narrow rail, and laptops a sidebar with the More pages listed. Every status shows a colour, an icon and a word. Red is kept for money owed by law, errors and confirmations that remove something. Every screen works in English and Vietnamese. Screenshots of each one are in `docs/ux-audit/2026-10-08-after/`.
 
 ### 3.1 Tablet clock (`/kiosk`)
-- Grid of technician names, colour-coded: white = out, green = in, amber = on break. Tapping a name switches the UI to that technician's language.
-- PIN pad: four large keys per row, 64 px tall, no keyboard. Wrong PIN shows in red; five failures lock that PIN for five minutes.
-- After the PIN: one or two big buttons for the only valid actions (Clock in / Clock out / Start break / End break). A live camera preview sits beside the pad; the photo is taken when the button is pressed, as a side effect, not a step (pattern from Mangomint and Zenoti, research 02).
-- Confirmation screen shows the time and today's hours, then returns to the grid after four seconds. Idle screens return after 30 seconds.
-- Offline: a failed request queues the punch with the tap time; the header shows "offline" and the queue count; the queue flushes on reconnect and every 20 seconds.
-- A forgotten clock-out is never auto-closed. The next clock-in starts a new shift and the old one stays open and flagged for the owner.
-- Pairing (`/kiosk/pair`): the owner signs in once on the tablet, names it, and the tablet keeps only a device cookie. The owner session is removed so the tablet cannot reach pay data.
+- A status board with one tile per technician. Each tile shows in, on break or out as a colour, an icon and a word. Today's ticket count can be shown as well.
+- Tapping a name opens a PIN pad with large keys, in that technician's language. A wrong PIN clears at once with a shake, so the retry is immediate. Five wrong tries lock that PIN for five minutes.
+- With "PIN alone clocks in" on, the PIN clocks an absent technician in straight away and offers Undo for a few seconds. Someone already in gets large Break and Clock out buttons.
+- A forgotten clock-out from an earlier day is caught at the next PIN. The technician confirms when they left, with the usual closing time offered, and the owner sees the shift flagged.
+- Offline, punches queue with the time of the tap and send when the connection returns. The header shows the connection state.
+- `/kiosk/setup` explains Add to Home Screen, and Guided Access on iPad or screen pinning on Android. Pairing at `/kiosk/pair` signs in once, names the tablet and keeps only a device cookie.
 
-### 3.2 Today (`/app/today`)
-- Date strip with previous / next / picker. Four tiles: sales, card tips, cash tips, hours.
-- One card per technician: punches as chips (photo thumbnail, in → out, break minutes, source badge if not from the tablet, "Fix time"), then a ticket table.
-- Add ticket panel pinned on the right: technician, service with autocomplete and a pre-filled default price, price, card tip, cash tip, payment method, ticket number, time. Two taps plus the tips (research 06 rule 15). The technician stays selected after each save.
-- Fix time requires a reason. Void ticket requires a reason. Add clock-in by hand requires a reason. Everything lands in the edit trail.
-- Import CSV link.
+### 3.2 Home (`/app/home`)
+- The week's key number comes first: what the law requires on top of the agreed pay, with a link to the week.
+- A to-do list built from the data: open shifts, tickets without hours, weeks to approve or pay, and statements not sent. Each item opens the exact record.
+- Who is in right now, with forgotten clock-outs flagged.
+- New salons see a setup checklist until it is done or hidden: technicians, tablet, first clock-in, first ticket, first week.
 
-### 3.3 Import (`/app/tickets/import`)
-- Upload a file; the format is sniffed from headers (Square Transactions and Items Detail, Fresha Commission Activity and Payment transactions, Vagaro Transaction List and Employee Sales, GlossGenius Commission Earnings, or a generic mapping).
-- Preview: rows found, how many are new, staff names that do not match a technician with a dropdown to map them.
-- Rows with an external id are skipped on re-import; rows without one are de-duplicated on date, technician, service and price.
+### 3.3 Today (`/app/today`)
+- A day strip for the workweek marks days that have records. A date picker reaches other days.
+- The day's sales, tips and hours, and this week's owed amount with a link to the pay week.
+- One card per technician, collapsed on phones. Each card shows shifts with Clock out now and Fix time, tickets with Void, card tips handed over in cash, and Add hours.
+- Add ticket is a panel on tablets and laptops and a bottom sheet on phones. It has technician chips, service buttons in the salon's order, tip presets and card or cash. A standard ticket takes three taps. After saving, a bar offers Undo and Repeat.
+- Fixes open sheets with reason chips, so no typing is needed. Clocking out, fixing, voiding and tip payouts show a toast with Undo. Every change lands in the edit trail.
 
-### 3.4 Pay runs (`/app/pay`, `/app/pay/[week]`)
-- List of workweeks with status chips (draft, approved, paid), gross wages, and the red number: what the law requires on top of the agreed pay this week.
-- Week table: one row per technician with days, hours, overtime hours, sales, commission, base, regular rate, top-up, overtime premium, tips card, tips cash, gross, total. Red cells where overtime or a top-up is owed. Warning chips per row (open punch, tickets without hours, day over 12 hours, possible 7(i), spread of hours).
-- Rules used: the minimum wage, overtime threshold and state rules in effect that week, each with its source link and checked-on date.
-- Approve freezes every row with its full breakdown and a snapshot of the rules. Reopen needs a reason and creates a new version. Mark as paid records cash / check / payroll amounts per technician and the paid-on date.
-- Export: Gusto CSV, ADP RUN CSV, generic CSV.
+### 3.4 Import (`/app/tickets/import`)
+- Drop a CSV file or choose one. Cards explain the export steps for Square, Vagaro, Fresha and other systems.
+- The format is detected: Square Items Detail and Transactions, Fresha, Vagaro, GlossGenius, Booksy or any spreadsheet. Period summaries are refused, with the names of exports that work.
+- Staff names are matched to technicians. The matches, columns and tip setting are remembered per format, so the next file of the same kind needs no choices unless a new name appears.
+- The preview shows cards on phones and a table on larger screens. A sticky bar says "Import N tickets". Rows already imported are skipped, and the result links to the day.
 
-### 3.5 Statement (`/app/pay/[week]/[technician]`, shared at `/s/[token]`)
-- Header: salon, technician, period, version, paid-by.
-- Summary: hours, days, sales, commission, base, regular rate, overtime, top-up, gross, tips (card and cash on separate lines), total.
-- Hours by day with first in and last out. The technician's tickets by day. Voided tickets are footnoted.
-- "How this was computed": every breakdown line with the inputs and the rule cited.
-- Print stylesheet; PDF download; copy link (signed token, no login) to text to the technician.
-- Language follows the technician's setting with a toggle.
+### 3.5 Pay runs (`/app/pay`, `/app/pay/[week]`)
+- Weeks show as cards on phones and a table on larger screens, with status, owed by law, total and statements sent.
+- A week starts with a stepper: Draft, Approved, Paid, Sent. Problems that block approval come next, each with a link to the day, then the key numbers.
+- On phones each technician gets a card with the reasons in plain sentences. Larger screens get a table with summary, full and rules views.
+- Approve and Mark paid are two-press buttons that show the amount. "Paid another way" records cash, check or payroll per technician. Reopening needs a reason. The Gusto, ADP RUN and generic CSV exports sit in the options menu.
+- Send (`/app/pay/[week]/send`) shares or copies each statement link, with a text-message fallback, and marks it sent.
 
-### 3.6 Audit binder (`/app/audit`)
-- Date range. Export PDF (cover, salon, technicians with 29 CFR 516.2 fields, hours by day and week, pay by week, edit history) and CSV zip (workers, punches, tickets, pay lines, edits, monthly tip totals per technician).
-- Edit history table: when, who, what, before, after, why. Filter by technician and entity.
-- Retention line: records are kept at least 3 years federally and 6 years in New York; the app never deletes pay data.
+### 3.6 Statement (`/app/pay/[week]/[technician]`, shared at `/s/[token]`)
+- The technician's language comes first, with the other language under each label. `?lang=` switches.
+- A total box, the summary table, hours by day, tickets by day, and "How this was computed" written as sentences.
+- It prints black on white and downloads as a PDF. The signed share link needs no login.
 
-### 3.7 Settings (`/app/settings`)
-- Salon: name, license number, address, state, region, time zone, workweek start, default language, photo on punch.
-- Rules in effect, read-only, with sources.
-- Paired tablets with last-used time and unpair.
-- Owner and bookkeeper logins.
+### 3.7 Audit binder (`/app/audit`)
+- The export comes first: this month, last month, this year or chosen dates, as a PDF binder or a CSV zip. A line under it gives the state's record retention period.
+- The last 90 days of changes read as sentences, for example "Tina changed Linh's clock-out on Thu, Oct 1: 6:00 PM → 7:30 PM". Filters narrow them by area and by technician. Raw values sit under Details. The PDF and the CSV carry the same sentences.
 
 ### 3.8 Technicians (`/app/workers`)
-- List with pay basis, rates, language, active headcount, and the New York wage-bond note.
-- Form: name on the tablet, legal name, address, date of birth if under 19, occupation, sex (optional), language, PIN, classification (W-2 or 1099 with warning), pay basis with only the relevant rate fields shown, hired and ended dates, active.
+- One list with an avatar, the pay plan as a sentence, the PIN lock state and an Active switch. The switch saves at once and offers Undo. New York salons see the wage-bond note.
+- The form has three cards: name and PIN; how they are paid, with five plan cards and a live sentence; and details for the records.
+- Make a PIN creates a PIN that no other technician uses and that is hard to guess. Print PIN card prints a wallet-size card in the technician's language. Leaving with unsaved changes asks first.
+
+### 3.9 Services (`/app/services`)
+- This page sets the order of the ticket buttons, with arrows on every screen and drag on larger ones. "Most used first" sorts by the last 30 days and offers Undo.
+- Services can be shown or hidden, added, and edited with names in both languages and the usual price.
+
+### 3.10 Tablets (`/app/tablets`)
+- Paired tablets show online or last-seen state, with a two-press Unpair. A warning appears when two tablets share a name.
+- Pairing steps come with a copyable address and a link to the setup guide.
+- The tablet switches live here: photo at clock-in, PIN alone clocks in, ticket counts, sounds and dim after closing.
+
+### 3.11 Settings (`/app/settings`)
+- Salon: name, license number, address, state and region, time zone, pay-week start, default language and usual closing time.
+- Pay rules: the rules in effect as sentences, each with its source and dates, and the record retention period.
+- Logins: owners, managers and bookkeepers, each with a line on what the role can do. Removing a login takes two presses.
+
+### 3.12 Sign in and sign up
+- Large fields, a show-password button and "Keep me signed in". That keeps the session for 30 days; otherwise it ends when the browser closes. Errors appear in the reader's language.
+- Sign-up leads to Home and its setup checklist.
 
 ## 4. Pay engine (`app/src/lib/pay/engine.ts`)
 
@@ -112,6 +127,8 @@ See `app/src/lib/server/db/schema.ts`. Tables: salons, users, sessions, devices,
 | CSS | Tailwind 4 | Utility classes, print stylesheet |
 | PWA | @vite-pwa/sveltekit | Installable kiosk, cached shell |
 | Tests | Vitest 5, fast-check 4, Playwright 1.63 | Engine examples and invariants, end-to-end smoke |
+| Interface parts (added 2026-10-08) | bits-ui 2.19 (bottom sheets only), @lucide/svelte 1.47 (icons) | Accessible dialogs without writing focus handling by hand; icons are imported one by one so only the ones used ship. The overflow menu is hand-written to avoid a positioning library |
+| Accessibility tests (added 2026-10-08) | @axe-core/playwright 4.13 | axe on every page in both languages, inside the end-to-end run |
 
 ## 7. Deployment
 
@@ -171,6 +188,18 @@ Booking, POS, payments, payroll tax filing, W-2s, SMS, native apps, turn assignm
 2. Weekly or biweekly: the research says weekly by custom and biweekly on Gusto or ADP. Default is weekly; the setting exists.
 3. Should card tips paid out in cash the same day be recorded as already paid, so the week's "total to pay" excludes them? The field exists on the pay line; the default counts card tips as owed.
 
-## 11. Interface revamp (planned 2026-10-08)
+## 11. Interface revamp (shipped 2026-10-08)
 
-The v1 screens above work but were built for function first. `docs/UX-REVAMP-PLAN.md` replaces §3 of this document for the user interface: a token-based design system, a four-tab phone navigation with a sidebar on tablets, a kiosk status board, a three-tap ticket builder, a pay week that reads as cards on phones, bilingual statements, and a numbered ticket backlog grounded in `research/11-ui-ux-patterns-and-evidence.md`. The pay engine, data model, rules and exports in §4-§7 are unchanged by it.
+`docs/UX-REVAMP-PLAN.md` replaced §3 of this document for the user interface. Its research is in `research/11-ui-ux-patterns-and-evidence.md`. The pay engine, data model, rules and exports in §4-§7 kept their behaviour. Two schema additions came with it: salon settings for the tablet and the closing time, and remembered import matches.
+
+| Phase | What it covers | Commit |
+|---|---|---|
+| P0 | Design tokens, component kit, navigation, Home | `4f5bf35` |
+| P1 | Tablet clock | `ffbcaea` |
+| P2 | Today and ticket entry | `a8cab2f` |
+| P3 | Home to-dos and deep links (finished with P4) | `4f5bf35`, `a49439a` |
+| P4 | Pay weeks, statements, sending | `a49439a` |
+| P5 | Technicians, services, settings, tablets, import, audit, sign-in | `c279522` |
+| P6 | Performance, print, accessibility and visual checks | `a1135d4` |
+
+Still open: Today's blocking time is over budget (`docs/ux-audit/2026-10-08-after/perf.md`). VoiceOver and real-device keyboard checks, and the pilot test with three salons (`docs/ux-audit/pilot-notes.md`), also remain.
